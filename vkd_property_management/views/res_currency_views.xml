@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_currency_form" model="ir.ui.view">
+        <field name="name">res.currency.view.form.inherit.property_management</field>
+        <field name="model">res.currency</field>
+        <field name="inherit_id" ref="base.view_currency_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/group" position="before">
+                <div class="oe_button_box" name="button_box">
+                    <button name="action_update_unit_price" type="object" string="Update Prices" icon="fa-upload"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

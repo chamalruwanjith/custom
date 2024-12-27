@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<odoo>
+
+    <record id="view_apartment_details_tree" model="ir.ui.view">
+        <field name="name">apartment.details.view.tree</field>
+        <field name="model">apartment.details</field>
+        <field name="arch" type="xml">
+            <tree string="Apartment Details">
+                <field name="apartment_name"/>
+                <field name="apartment_prefix"/>
+                <field name="apartment_type"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_apartment_details_form" model="ir.ui.view">
+        <field name="name">apartment.details.view.form</field>
+        <field name="model">apartment.details</field>
+        <field name="arch" type="xml">
+            <form string="Apartment Details">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="apartment_name"/>
+                            <field name="apartment_prefix"/>
+                            <field name="is_multiple_towers"/>
+                            <field name="is_include_villas"/>
+                            <field name="prefix_for_villas" invisible="is_include_villas == False"/>
+                            <field name="apartment_type" widget="radio"/>
+                            <field name="company_id" invisible="1"/>
+                            <label for="address_line_1" string="Apartment Address"/>
+                            <div class="o_address_format">
+                                <field name="address_line_1" placeholder="Street..." class="o_address_street"/>
+                                <field name="address_line_2" placeholder="Street 2..." class="o_address_street"/>
+                                <field name="city" placeholder="City" class="o_address_city"/>
+                                <field name="zip_code" placeholder="ZIP" class="o_address_zip"/>
+                            </div>
+                            <field name="is_publish"/>
+                            <field name="is_active"/>
+                        </group>
+                        <group>
+                            <field name="apartment_image" nolabel="1" widget='image' class="oe_avatar"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Towers" invisible="is_multiple_towers == False">
+                            <field name="tower_details_ids" widget="one2many"/>
+                        </page>
+                        <page string="Floors">
+                            <field name="floor_details_ids" widget="one2many"/>
+                        </page>
+                        <page string="Units">
+                            <field name="unit_details_ids" widget="one2many"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_apartment_details" model="ir.actions.act_window">
+        <field name="name">Apartment Details</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">apartment.details</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_apartment_details"
+              name="Apartments"
+              parent="menu_apartment_management"
+              action="action_apartment_details"
+              sequence="1"/>
+
+</odoo>

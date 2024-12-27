@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<odoo>
+
+    <record id="view_unit_details_tree" model="ir.ui.view">
+        <field name="name">unit.details.view.tree</field>
+        <field name="model">unit.details</field>
+        <field name="arch" type="xml">
+            <tree string="Unit Details">
+                <field name="unit_code"/>
+                <field name="apartment_details_id"/>
+                <field name="tower_details_id"/>
+                <field name="floor_details_id"/>
+                <field name="unit_status" widget="badge"/>
+                <field name="unit_price"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_unit_details_form" model="ir.ui.view">
+        <field name="name">unit.details.view.form</field>
+        <field name="model">unit.details</field>
+        <field name="arch" type="xml">
+            <form string="Unit Details">
+                <header>
+                    <button name="action_set_available" type="object" string="Set Available" class="oe_highlight"
+                            invisible="unit_status in ['available', 'cancel', 'reserved', 'sold', 'hold', 'special_hold']"/>
+                    <button name="action_set_reserved" type="object" string="Set Reserved" class="oe_highlight"
+                            invisible="unit_status in ['reserved', 'draft', 'cancel', 'sold', 'special_hold']"/>
+                    <button name="action_set_sold" type="object" string="Set Sold" class="oe_highlight"
+                            invisible="unit_status in ['sold', 'draft', 'cancel']"/>
+                    <button name="action_set_special_hold" type="object" string="Special Hold" class="oe_highlight"
+                            invisible="unit_status in ['special_hold', 'draft', 'cancel', 'sold']"
+                            groups="vkd_property_management.group_property_management_admin"/>
+                    <button name="action_set_cancel" type="object" string="Cancel" class="oe_highlight"
+                            invisible="unit_status in ['cancel', 'draft', 'cancel']"/>
+                    <button name="action_set_reset" type="object" string="Reset to Draft" class="oe_highlight"
+                            invisible="unit_status in ['reset', 'draft', 'available', 'reserved', 'sold', 'hold', 'special_hold']"/>
+                    <field name="unit_status" widget='statusbar'
+                           statusbar_visible="draft,available,hold,special_hold,reserved,sold,cancel"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_products"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-cubes"
+                                string="Product">
+                        </button>
+                        <button name="action_open_sale_orders"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-signal"
+                                string="Sales"
+                                invisible="sale_order_count == 0">
+                            <field name="sale_order_count" widget="statinfo" string="Sale Orders"/>
+                        </button>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="apartment_details_id" readonly="unit_status != 'draft'"/>
+                            <field name="is_include_villas" invisible="1" readonly="unit_status != 'draft'"/>
+                            <field name="unit_type" widget="radio" options="{'horizontal': true}"
+                                   invisible="is_include_villas == False" readonly="unit_status != 'draft'"/>
+                            <field name="is_multiple_tower_apartment" invisible="1" readonly="unit_status != 'draft'"/>
+                            <field name="tower_details_id"
+                                   domain="[('apartment_details_id', '=', apartment_details_id)]"
+                                   invisible="is_multiple_tower_apartment == False or unit_type == 'villa'"
+                                   readonly="unit_status != 'draft'"/>
+                            <field name="floor_details_id"
+                                   invisible="apartment_details_id == False or unit_type == 'villa'"
+                                   domain="[('apartment_details_id', '=', apartment_details_id)] and [('tower_details_id', '=', tower_details_id)]"
+                                   readonly="unit_status != 'draft'"/>
+                            <field name="unit_name" placeholder="Unit Name" readonly="unit_status != 'draft'"/>
+                            <field name="unit_code" readonly="unit_status != 'draft'"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="is_unit_special_hold" readonly="1"/>
+                            <field name="is_unit_sold" readonly="1"/>
+                            <field name="is_property_user" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="unit_image" nolabel="1" widget='image' class="oe_avatar"
+                                   readonly="unit_status != 'draft'"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Unit Information">
+                            <group>
+                                <group>
+                                    <field name="total_area" readonly="unit_status != 'draft'"/>
+                                    <field name="usable_area" readonly="unit_status != 'draft'"/>
+                                </group>
+                                <group>
+                                    <field name="is_multiple_floors" invisible="unit_type == 'villa'"
+                                           readonly="unit_status != 'draft'"/>
+                                    <field name="floor_details_ids" widget="many2many_tags"
+                                           invisible="is_multiple_floors == False"
+                                           domain="[('apartment_details_id', '=', apartment_details_id)] and [('tower_details_id', '=', tower_details_id)]"
+                                           readonly="unit_status != 'draft'"/>
+                                    <field name="number_of_rooms" readonly="unit_status != 'draft'"/>
+                                    <field name="number_of_bathrooms" readonly="unit_status != 'draft'"/>
+                                    <field name="facing_direction" readonly="unit_status != 'draft'"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Pricing"
+                              invisible="is_property_user == True and (is_unit_sold == True or is_unit_special_hold == True)">
+                            <group>
+                                <group>
+                                    <field name="unit_price" readonly="unit_status != 'draft'"/>
+                                    <field name="unit_price_aud" readonly="unit_status != 'draft'"/>
+                                    <field name="unit_price_usd" readonly="unit_status != 'draft'"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Address">
+                            <group>
+                                <group>
+                                    <label for="address_line_1" string="Unit Address"
+                                           readonly="unit_status != 'draft'"/>
+                                    <div class="o_address_format">
+                                        <field name="address_line_1" placeholder="Street..." class="o_address_street"
+                                               readonly="unit_status != 'draft'"/>
+                                        <field name="address_line_2" placeholder="Street 2..."
+                                               class="o_address_street" readonly="unit_status != 'draft'"/>
+                                        <field name="city" placeholder="City" class="o_address_city"
+                                               readonly="unit_status != 'draft'"/>
+                                        <field name="zip_code" placeholder="ZIP" class="o_address_zip"
+                                               readonly="unit_status != 'draft'"/>
+                                    </div>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Images">
+                            <group>
+                                <group>
+                                    <field name="unit_images_1" widget='image' style="width:350px;height:350px;"
+                                           readonly="unit_status != 'draft'"/>
+                                    <field name="unit_images_2" widget='image' style="width:350px;height:350px;"
+                                           readonly="unit_status != 'draft'"/>
+                                </group>
+                                <group>
+                                    <field name="unit_images_3" widget='image' style="width:350px;height:350px;"
+                                           readonly="unit_status != 'draft'"/>
+                                    <field name="unit_images_4" widget='image' style="width:350px;height:350px;"
+                                           readonly="unit_status != 'draft'"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter" groups="vkd_property_management.group_property_management_admin">
+                    <field name="message_follower_ids" widget="mail_followers"/>
+                    <field name="message_ids" widget="mail_thread"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_unit_details" model="ir.actions.act_window">
+        <field name="name">Unit Details</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">unit.details</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_unit_details"
+              name="Units"
+              parent="menu_unit_management"
+              action="action_unit_details"
+              sequence="1"/>
+
+</odoo>

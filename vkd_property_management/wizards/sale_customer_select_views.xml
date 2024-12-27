@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<odoo>
+
+    <record id="view_sale_customer_select_form" model="ir.ui.view">
+        <field name="name">sale.customer.select.view.form</field>
+        <field name="model">sale.customer.select</field>
+        <field name="arch" type="xml">
+            <form string="Select Customer">
+                <group>
+                    <field name="partner_id" placeholder="Select Customer" required="1"/>
+                    <field name="unit_details_id" invisible="1"/>
+                </group>
+                <footer>
+                    <button string="Create Sale Order" type="object" name="action_create_sale_order"
+                            class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    <record id="action_select_customer_wizard" model="ir.actions.act_window">
+        <field name="name">Select Customer</field>
+        <field name="res_model">sale.customer.select</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

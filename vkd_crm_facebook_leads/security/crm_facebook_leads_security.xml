@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="crm_facebook_page_company_rule" model="ir.rule">
+            <field name="name">CRM Facebook Page Multi-Company</field>
+            <field name="model_id" ref="model_crm_facebook_page"/>
+            <field name="domain_force">['|',('company_id','=',False),('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="crm_facebook_form_company_rule" model="ir.rule">
+            <field name="name">CRM Facebook Form Multi-Company</field>
+            <field name="model_id" ref="model_crm_facebook_form"/>
+            <field name="domain_force">['|',('company_id','=',False),('company_id', 'in', company_ids)]</field>
+        </record>
+    </data>
+</odoo>

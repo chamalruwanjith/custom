@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<odoo>
+    <!-- Custom Module Category -->
+    <record id="module_category_property_management" model="ir.module.category">
+        <field name="name">Property Management</field>
+        <field name="description">Access rights related to VKD Property Management.</field>
+        <field name="sequence">10</field>
+    </record>
+
+    <!-- Property Management Admin -->
+    <record id="group_property_management_admin" model="res.groups">
+        <field name="name">Property Management Admin</field>
+        <field name="category_id" ref="vkd_property_management.module_category_property_management"/>
+        <field name="comment">This group gives admin-level access to the Property Management module.</field>
+        <field name="implied_ids" eval="[(4, ref('vkd_property_management.group_property_management_user'))]"/>
+    </record>
+
+    <!-- Property Management User -->
+    <record id="group_property_management_user" model="res.groups">
+        <field name="name">Property Management User</field>
+        <field name="category_id" ref="vkd_property_management.module_category_property_management"/>
+        <field name="comment">This group gives user-level access to the Property Management module.</field>
+    </record>
+
+    <!-- Record Rule to Restrict Access to Unit Details Based on Company -->
+    <record id="unit_details_company_access_rule" model="ir.rule">
+        <field name="name">Unit Details - Access by Company</field>
+        <field name="model_id" ref="model_unit_details"/>
+        <field name="domain_force">['|',('company_id','=',False),('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- Record Rule to Restrict Access to Apartment Details Based on Company -->
+    <record id="apartment_details_company_access_rule" model="ir.rule">
+        <field name="name">Apartment Details - Access by Company</field>
+        <field name="model_id" ref="model_apartment_details"/>
+        <field name="domain_force">['|',('company_id','=',False),('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- Record Rule to Restrict Access to Floor Details Based on Company -->
+    <record id="floor_details_company_access_rule" model="ir.rule">
+        <field name="name">Apartment Details - Access by Company</field>
+        <field name="model_id" ref="model_floor_details"/>
+        <field name="domain_force">['|',('company_id','=',False),('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- Record Rule to Restrict Access to Tower Details Based on Company -->
+    <record id="tower_details_company_access_rule" model="ir.rule">
+        <field name="name">Tower Details - Access by Company</field>
+        <field name="model_id" ref="model_tower_details"/>
+        <field name="domain_force">['|',('company_id','=',False),('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- Record Rule to Restrict Access to Unit Reservation Based on Company -->
+    <record id="unit_reservation_company_access_rule" model="ir.rule">
+        <field name="name">Unit Reservation - Access by Company</field>
+        <field name="model_id" ref="model_unit_reservation"/>
+        <field name="domain_force">['|',('company_id','=',False),('company_id', 'in', company_ids)]</field>
+    </record>
+
+</odoo>

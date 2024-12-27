@@ -1,0 +1,1 @@
+from odoo import api, fields, models, _class SaleAgentCategories(models.Model):    _name = "sale.agent.categories"    _rec_name = "agent_category_name"    _description = "Sale Agent Categories"    agent_category_name = fields.Char(string="Sale Agent Category", required=True)    agent_category_description = fields.Text(string="Description")

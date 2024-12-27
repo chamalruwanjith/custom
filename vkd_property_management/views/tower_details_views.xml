@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<odoo>
+
+    <record id="view_tower_details_tree" model="ir.ui.view">
+        <field name="name">tower.details.view.tree</field>
+        <field name="model">tower.details</field>
+        <field name="arch" type="xml">
+            <tree string="Tower Details">
+                <field name="apartment_details_id"/>
+                <field name="tower_name"/>
+                <field name="tower_prefix"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_tower_details_form" model="ir.ui.view">
+        <field name="name">tower.details.view.form</field>
+        <field name="model">tower.details</field>
+        <field name="arch" type="xml">
+            <form string="Apartment Details">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="apartment_details_id"/>
+                            <field name="tower_name"/>
+                            <field name="tower_prefix"/>
+                            <field name="company_id" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="tower_image" nolabel="1" widget='image' class="oe_avatar"/>
+                        </group>
+                        <notebook>
+                            <page string="Floors">
+                                <field name="floor_details_ids" widget="one2many"/>
+                            </page>
+                        </notebook>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_tower_details" model="ir.actions.act_window">
+        <field name="name">Tower Details</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">tower.details</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_tower_details"
+              name="Towers"
+              parent="menu_apartment_management"
+              action="action_tower_details"
+              sequence="2"/>
+
+</odoo>

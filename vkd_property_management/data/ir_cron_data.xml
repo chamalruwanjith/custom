@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<odoo>
+
+    <data>
+        <record id="ir_cron_unit_reservation_expiration" model="ir.cron">
+            <field name="name">Check Unit Hold Expirations</field>
+            <field name="model_id" ref="model_unit_reservation"/>
+            <field name="state">code</field>
+            <field name="code">model.check_hold_expiration()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="numbercall">-1</field>
+        </record>
+        <record id="ir_cron_update_missing_units" model="ir.cron">
+            <field name="name">Update Missing Units</field>
+            <field name="model_id" ref="model_unit_details"/>
+            <field name="state">code</field>
+            <field name="code">model._update_missing_units()</field>
+            <field name="interval_type">days</field>
+            <field name="interval_number">1</field>
+            <field name="numbercall">-1</field>
+            <field name="active">True</field>
+        </record>
+    </data>
+
+</odoo>

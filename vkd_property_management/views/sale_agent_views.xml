@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Sale Agent details list view -->
+    <record id="employee_details_tree_view" model="ir.ui.view">
+        <field name="name">sale.agent.view.tree</field>
+        <field name="model">sale.agent</field>
+        <field name="arch" type="xml">
+            <tree string="Sale Agent Details">
+                <field name="full_name"/>
+                <field name="sale_agent_categories_id"/>
+                <field name="email"/>
+                <field name="mobile"/>
+                <field name="nic"/>
+                <field name="company_id"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Sale Agent Details form view -->
+    <record id="_form_view" model="ir.ui.view">
+        <field name="name">sale.agent.view.form</field>
+        <field name="model">sale.agent</field>
+        <field name="arch" type="xml">
+            <form string="Sale Agent Details">
+                <sheet>
+                    <group>
+                        <field name="full_name"/>
+                        <field name="agent_id"/>
+                        <field name="sale_agent_categories_id"/>
+                        <field name="company_id"/>
+                        <field name="secret_key" readonly="1"/>
+                        <field name="email" readonly="1"/>
+                        <field name="nic" readonly="1"/>
+                        <field name="mobile" readonly="1"/>
+                        <field name="password" invisible="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- action for Sale Agent Details -->
+    <record id="sale_agent_details_action" model="ir.actions.act_window">
+        <field name="name">Sale Agent Details</field>
+        <field name="res_model">sale.agent</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_sale_agent_details"
+              name="Sale Agents"
+              parent="menu_sale_agent"
+              action="sale_agent_details_action"
+              sequence="1"
+              groups="group_property_management_admin"/>
+
+</odoo>

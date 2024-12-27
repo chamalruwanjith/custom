@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<odoo>
+
+    <record id="product_template_only_form_view" model="ir.ui.view">
+        <field name="name">product.template.view.form.inherit.vkd_property_management</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='taxes_id']" position="before">
+                <field name="unit_price_aud" groups="stock.group_stock_manager"/>
+                <field name="unit_price_usd" groups="stock.group_stock_manager"/>
+            </xpath>
+            <xpath expr="//field[@name='list_price']" position="attributes">
+                <attribute name="groups">stock.group_stock_manager</attribute>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

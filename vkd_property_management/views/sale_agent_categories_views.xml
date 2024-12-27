@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<odoo>
+
+    <record id="sale_agent_categories_tree_view" model="ir.ui.view">
+        <field name="name">sale.agent.categories.view.tree</field>
+        <field name="model">sale.agent.categories</field>
+        <field name="arch" type="xml">
+            <tree string="Sale Agent Category Details">
+                <field name="agent_category_name"/>
+                <field name="agent_category_description"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="sale_agent_categories_form_view" model="ir.ui.view">
+        <field name="name">sale.agent.categories.view.form</field>
+        <field name="model">sale.agent.categories</field>
+        <field name="arch" type="xml">
+            <form string="Sale Agent Category Details">
+                <sheet>
+                    <group>
+                        <field name="agent_category_name"/>
+                        <field name="agent_category_description"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_sale_agent_categories" model="ir.actions.act_window">
+        <field name="name">Sale Agent Categories</field>
+        <field name="res_model">sale.agent.categories</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_sale_agent_categories"
+              name="Sale Agent Categories"
+              parent="menu_sale_agent"
+              action="action_sale_agent_categories"
+              sequence="2"
+              groups="group_property_management_admin"/>
+
+</odoo>
