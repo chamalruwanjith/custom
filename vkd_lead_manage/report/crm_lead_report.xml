@@ -1,0 +1,39 @@
+<odoo>
+    <record id="crm_lead_report_view_form" model="ir.ui.view">
+        <field name="name">crm.lead.report.view.form</field>
+        <field name="model">crm.lead.report</field>
+        <field name="arch" type="xml">
+            <form string="Generate Leads Report">
+                <sheet>
+                    <group>
+                        <field name="report_by" widget="radio"/>
+                    </group>
+                    <group>
+                        <field name="start_date"/>
+                        <field name="end_date" invisible="report_by == 'date'"/>
+                    </group>
+                    <group>
+                        <field name="shift_type"/>
+                    </group>
+                    <footer>
+                        <button string="Generate" type="object" name="action_generate_report" class="btn-primary"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_crm_lead_report" model="ir.actions.act_window">
+        <field name="name">Generate Leads Report</field>
+        <field name="res_model">crm.lead.report</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_crm_lead_report"
+              name="Leads Report"
+              parent="crm.crm_menu_report"
+              action="action_crm_lead_report"
+              sequence="0"/>
+</odoo>

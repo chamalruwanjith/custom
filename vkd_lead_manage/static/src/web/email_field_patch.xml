@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="web.FormEmailField" t-inherit-mode="extension">
+        <!-- Add the click handler to the mailto link in read-only mode -->
+        <xpath expr="//a[hasclass('o_form_uri')]" position="replace">
+            <a class="o_form_uri o_text_overflow" t-on-click="onLinkClicked"
+               t-att-href="props.record.data[props.name] ? 'mailto:'+props.record.data[props.name] : undefined"
+               t-esc="props.record.data[props.name] || ''"/>
+        </xpath>
+
+        <xpath expr="//input" position="after">
+            <a t-if="props.record.data[props.name]"
+               t-att-href="'mailto:'+props.record.data[props.name]"
+               class="ms-3 d-inline-flex align-items-center"
+               target="_blank"
+               t-on-click="onLinkClicked">
+                <i class="fa fa-envelope" data-tooltip="Send Email" aria-label="Send Email"/>
+            </a>
+        </xpath>
+    </t>
+
+</templates>

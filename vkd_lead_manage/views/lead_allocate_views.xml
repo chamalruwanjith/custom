@@ -1,0 +1,70 @@
+<odoo>
+    <record id="lead_allocate_view_form" model="ir.ui.view">
+        <field name="name">lead.allocate.view.form</field>
+        <field name="model">lead.allocate</field>
+        <field name="arch" type="xml">
+            <form string="Lead Allocate">
+                <sheet>
+                    <group>
+                        <field name="team_id"/>
+                        <field name="user_id"/>
+                    </group>
+                    <group>
+                        <field name="shift_date"/>
+                        <field name="shift_type"/>
+                    </group>
+                    <group>
+                        <field name="from_time"/>
+                        <field name="to_time"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" widget="mail_followers"/>
+                    <field name="message_ids" widget="mail_thread"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="lead_allocate_view_tree" model="ir.ui.view">
+        <field name="name">lead.allocate.view.tree</field>
+        <field name="model">lead.allocate</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="team_id"/>
+                <field name="user_id"/>
+                <field name="shift_date"/>
+                <field name="shift_type"/>
+                <field name="from_time"/>
+                <field name="to_time"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_lead_allocate_views" model="ir.actions.act_window">
+        <field name="name">Lead Allocate</field>
+        <field name="res_model">lead.allocate</field>
+        <field name="view_mode">tree,form</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="view_id" ref="lead_allocate_view_tree"/>
+    </record>
+
+    <record id="lead_allocate_view_search_filter" model="ir.ui.view">
+        <field name="name">lead.allocate.search.filter</field>
+        <field name="model">lead.allocate</field>
+        <field name="arch" type="xml">
+            <search string="Lead Allocate">
+                <field name="team_id"/>
+                <field name="user_id"/>
+            </search>
+        </field>
+    </record>
+
+    <menuitem
+            id="menu_crm_lead_allocate"
+            name="Leads Allocate"
+            parent="crm.menu_crm_config_lead"
+            sequence="4"
+            action="action_lead_allocate_views"
+            groups="sales_team.group_sale_manager"/>
+</odoo>

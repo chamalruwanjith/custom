@@ -1,0 +1,11 @@
+@mixin gantt-decoration-color($color) {
+    background-image: linear-gradient($color, $color);
+    background-color: lighten($color, 10%);
+    &:before {
+        content: none;
+    }
+}
+
+.first_stage_color {
+    @include gantt-decoration-color(map-get($grays, '500'));
+}

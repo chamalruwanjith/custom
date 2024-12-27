@@ -1,0 +1,60 @@
+<odoo>
+    <record id="crm_lead_view_form" model="ir.ui.view">
+        <field name="name">crm.lead.view.form.inherit.vkd_lead_manage</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr='//field[@name="lost_reason_id"]' position='before'>
+                <field name="attend_time" class="o_inline"/>
+                <field name="attended_by" class="o_inline"/>
+                <field name="response_time"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="crm_case_tree_view_oppor" model="ir.ui.view">
+        <field name="name">crm.lead.view.tree.inherit.vkd_lead_manage</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_case_tree_view_oppor"/>
+        <field name="arch" type="xml">
+            <xpath expr="//tree//button[@name='%(crm.action_lead_mail_compose)d']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//tree//button[@name='%(crm.action_lead_mass_mail)d']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//tree//button[@name='%(crm_sms.crm_lead_act_window_sms_composer_single)d']"
+                   position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//tree//button[@name='%(crm_sms.crm_lead_act_window_sms_composer_multi)d']"
+                   position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//tree" position="attributes">
+                <attribute name="decoration-warning">stage_id == 1</attribute>
+            </xpath>
+            <xpath expr='//field[@name="name"]' position='before'>
+                <field name="create_date"/>
+                <field name="attend_time"/>
+                <field name="response_time"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="crm_case_kanban_view_leads" model="ir.ui.view">
+        <field name="name">crm.lead.view.kanban.inherit.vkd_lead_manage</field>
+        <field name="model">crm.lead</field>
+        <field name="priority" eval="8"/>
+        <field name="inherit_id" ref="crm.crm_case_kanban_view_leads"/>
+        <field name="arch" type="xml">
+            <xpath expr="//t[@t-name='kanban-box']//div[1]"
+                   position="attributes">
+                <attribute name="t-attf-class">
+                    #{!selection_mode ? kanban_color(record.color.raw_value) : ''} #{lost_ribbon ? 'oe_kanban_card_ribbon' : ''} oe_kanban_global_click oe_kanban_card d-flex flex-column
+                    #{record.stage_id.raw_value == 1 ? 'first_stage_color' : ''}
+                </attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>

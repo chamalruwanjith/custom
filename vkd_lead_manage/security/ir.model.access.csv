@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_lead_allocate,access_lead_allocate,model_lead_allocate,base.group_user,1,1,1,1
+access_crm_lead_report,access_crm_lead_report,model_crm_lead_report,base.group_user,1,1,1,1
