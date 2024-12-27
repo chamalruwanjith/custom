@@ -1,0 +1,38 @@
+<odoo>
+    <data>
+        <record id="sale_agent_invitation_email_template" model="mail.template">
+            <field name="name">Sale Agent Invitation</field>
+            <field name="model_id" ref="vkd_property_management.model_sale_agent"/>
+            <field name="subject">Welcome to the Team, {{ object.full_name }}</field>
+            <field name="body_html" type="html">
+                <div>
+                    <p>
+                        Dear <t t-esc="object.full_name"/>,
+                        <br/><br/>
+                        Welcome to the system! We are excited to have you on board. Below are your credentials for create your user account in the portal:
+                    </p>
+                    <p>
+                        <ul>
+                            <li><strong>Portal:</strong> <a href="https://portal.odoo.homelands.lk/">https://portal.odoo.homelands.lk/</a></li>
+                            <li><strong>Agent ID:</strong> <t t-esc="object.agent_id"/></li>
+                            <li><strong>Secret Key:</strong> <t t-esc="object.secret_key"/></li>
+                        </ul>
+                    </p>
+                    <p>
+                        Please keep this information secure. You can log in using the provided credentials.
+                    </p>
+                    <br/>
+                    <p>
+                        Best regards,
+                        <br/>
+                        <t t-esc="object.company_id.name"/>
+                    </p>
+                </div>
+            </field>
+            <field name="email_to">${object.user_id.login}</field>
+            <field name="email_from">${object.company_id.email or user.email}</field>
+            <field name="lang">${object.user_id.lang or 'en_US'}</field>
+            <field name="auto_delete" eval="True"/>
+        </record>
+    </data>
+</odoo>

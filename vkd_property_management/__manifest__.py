@@ -20,12 +20,13 @@
     'author': "VK Data ApS",
     'website': "https://vkdata.dk",
 
-    'depends': ['base', 'mail', 'stock', 'sale', 'product'],
+    'depends': ['base', 'mail', 'stock', 'sale', 'product', 'sales_team'],
     'data': [
         'security/property_management_security.xml',
         'security/ir.model.access.csv',
         'data/unit_reservation_sequence_data.xml',
         'data/ir_cron_data.xml',
+        'data/mail_templates.xml',
         'views/property_management_menus.xml',
         'views/apartment_details_views.xml',
         'views/floor_details_views.xml',
@@ -34,7 +35,6 @@
         'views/res_config_settings_views.xml',
         'views/unit_reservation_views.xml',
         'views/tower_details_views.xml',
-        'views/sale_agent_categories_views.xml',
         'views/res_currency_views.xml',
         'views/product_template_views.xml',
         'wizards/sale_customer_select_views.xml',

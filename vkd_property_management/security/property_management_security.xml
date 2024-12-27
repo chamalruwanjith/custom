@@ -8,14 +8,14 @@
         <field name="sequence">10</field>
     </record>
 
-    <!-- Property Management User -->
+        <!-- Property Management User -->
     <record id="group_property_management_user" model="res.groups">
         <field name="name">Property Management User</field>
         <field name="category_id" ref="vkd_property_management.module_category_property_management"/>
         <field name="comment">This group gives user-level access to the Property Management module.</field>
     </record>
 
-        <!-- Property Management Admin -->
+    <!-- Property Management Admin -->
     <record id="group_property_management_admin" model="res.groups">
         <field name="name">Property Management Admin</field>
         <field name="category_id" ref="vkd_property_management.module_category_property_management"/>

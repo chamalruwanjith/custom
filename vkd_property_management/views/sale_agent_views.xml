@@ -7,7 +7,7 @@
         <field name="arch" type="xml">
             <tree string="Sale Agent Details">
                 <field name="full_name"/>
-                <field name="sale_agent_categories_id"/>
+                <field name="crm_team_id"/>
                 <field name="email"/>
                 <field name="mobile"/>
                 <field name="nic"/>
@@ -22,12 +22,16 @@
         <field name="model">sale.agent</field>
         <field name="arch" type="xml">
             <form string="Sale Agent Details">
+                <header>
+                    <button name="action_send_agent_invitation" type="object" string="Send Invitation" class="oe_highlight"/>
+                </header>
                 <sheet>
                     <group>
                         <field name="full_name"/>
                         <field name="agent_id"/>
-                        <field name="sale_agent_categories_id"/>
+                        <field name="crm_team_id"/>
                         <field name="company_id"/>
+                        <field name="user_id"/>
                         <field name="secret_key" readonly="1"/>
                         <field name="email" readonly="1"/>
                         <field name="nic" readonly="1"/>

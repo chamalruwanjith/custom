@@ -74,9 +74,9 @@
                             <field name="unit_name" placeholder="Unit Name" readonly="unit_status != 'draft'"/>
                             <field name="unit_code" readonly="unit_status != 'draft'"/>
                             <field name="company_id" invisible="1"/>
-                            <field name="is_unit_special_hold" readonly="1"/>
-                            <field name="is_unit_sold" readonly="1"/>
-                            <field name="is_property_user" readonly="1"/>
+                            <field name="is_unit_special_hold" invisible="1"/>
+                            <field name="is_unit_sold" invisible="1"/>
+                            <field name="is_property_user" invisible="1"/>
                         </group>
                         <group>
                             <field name="unit_image" nolabel="1" widget='image' class="oe_avatar"
@@ -88,7 +88,6 @@
                             <group>
                                 <group>
                                     <field name="total_area" readonly="unit_status != 'draft'"/>
-                                    <field name="usable_area" readonly="unit_status != 'draft'"/>
                                 </group>
                                 <group>
                                     <field name="is_multiple_floors" invisible="unit_type == 'villa'"
