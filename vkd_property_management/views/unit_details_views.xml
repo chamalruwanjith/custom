@@ -24,13 +24,11 @@
             <form string="Unit Details">
                 <header>
                     <button name="action_set_available" type="object" string="Set Available" class="oe_highlight"
-                            invisible="unit_status in ['available', 'cancel', 'reserved', 'sold', 'hold', 'special_hold']"/>
-                    <button name="action_set_reserved" type="object" string="Set Reserved" class="oe_highlight"
-                            invisible="unit_status in ['reserved', 'draft', 'cancel', 'sold', 'special_hold']"/>
-                    <button name="action_set_sold" type="object" string="Set Sold" class="oe_highlight"
-                            invisible="unit_status in ['sold', 'draft', 'cancel']"/>
+                            invisible="unit_status in ['available', 'cancel', 'reserved', 'sold', 'hold']"/>
+                    <button name="action_set_reserved" type="object" string="Tentatively Sold" class="oe_highlight"
+                            invisible="1"/>
                     <button name="action_set_special_hold" type="object" string="Special Hold" class="oe_highlight"
-                            invisible="unit_status in ['special_hold', 'draft', 'cancel', 'sold']"
+                            invisible="unit_status in ['special_hold', 'draft', 'cancel', 'sold', 'reserved']"
                             groups="vkd_property_management.group_property_management_admin"/>
                     <button name="action_set_cancel" type="object" string="Cancel" class="oe_highlight"
                             invisible="unit_status in ['cancel', 'draft', 'cancel']"/>
@@ -165,8 +163,8 @@
 
     <menuitem id="menu_unit_details"
               name="Units"
-              parent="menu_unit_management"
+              parent="menu_apartment_management"
               action="action_unit_details"
-              sequence="1"/>
+              sequence="4"/>
 
 </odoo>

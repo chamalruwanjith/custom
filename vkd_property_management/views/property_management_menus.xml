@@ -15,7 +15,7 @@
               sequence="1"/>
 
     <menuitem id="menu_unit_management"
-              name="Unit"
+              name="Unit Reservation"
               parent="property_management_root"
               sequence="3"/>
 

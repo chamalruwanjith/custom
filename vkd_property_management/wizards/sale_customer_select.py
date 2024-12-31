@@ -29,8 +29,8 @@ class SaleCustomerSelect(models.TransientModel):
         })
 
         # Set unit status to sold
-        unit.write({'unit_status': 'sold'})
-        unit.write({'is_unit_sold': True})
+        unit.write({'unit_status': 'reserved'})
+        # unit.write({'is_unit_sold': True})
 
         # Return an action to open the Sale Order form view
         return {

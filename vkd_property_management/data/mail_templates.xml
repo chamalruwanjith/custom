@@ -1,5 +1,6 @@
 <odoo>
     <data>
+        <!-- Sale Agent Invitation Email Template -->
         <record id="sale_agent_invitation_email_template" model="mail.template">
             <field name="name">Sale Agent Invitation</field>
             <field name="model_id" ref="vkd_property_management.model_sale_agent"/>
@@ -7,15 +8,26 @@
             <field name="body_html" type="html">
                 <div>
                     <p>
-                        Dear <t t-esc="object.full_name"/>,
-                        <br/><br/>
-                        Welcome to the system! We are excited to have you on board. Below are your credentials for create your user account in the portal:
+                        Dear<t t-esc="object.full_name"/>,
+                        <br/>
+                        <br/>
+                        Welcome to the system! We are excited to have you on board. Below are your credentials for
+                        create your user account in the portal:
                     </p>
                     <p>
                         <ul>
-                            <li><strong>Portal:</strong> <a href="https://portal.odoo.homelands.lk/">https://portal.odoo.homelands.lk/</a></li>
-                            <li><strong>Agent ID:</strong> <t t-esc="object.agent_id"/></li>
-                            <li><strong>Secret Key:</strong> <t t-esc="object.secret_key"/></li>
+                            <li>
+                                <strong>Portal:</strong>
+                                <a href="https://portal.odoo.homelands.lk/">https://portal.odoo.homelands.lk/</a>
+                            </li>
+                            <li>
+                                <strong>Agent ID:</strong>
+                                <t t-esc="object.agent_id"/>
+                            </li>
+                            <li>
+                                <strong>Secret Key:</strong>
+                                <t t-esc="object.secret_key"/>
+                            </li>
                         </ul>
                     </p>
                     <p>
@@ -34,5 +46,97 @@
             <field name="lang">${object.user_id.lang or 'en_US'}</field>
             <field name="auto_delete" eval="True"/>
         </record>
+
+        <!-- Notify Team Leader of Sale Submission -->
+        <record id="team_leader_notification_email_template" model="mail.template">
+            <field name="name">Team Leader Notification</field>
+            <field name="model_id" ref="vkd_property_management.model_unit_reservation"/>
+            <field name="subject">Sales Submission Notification for {{ object.sale_agent_id.full_name }}</field>
+            <field name="body_html" type="html">
+                <div>
+                    <p>
+                        Dear<t t-esc="object.sale_agent_id.crm_team_id.user_id.name"/>,
+                        <br/>
+                        <br/>
+                        Please be informed that the sales agent
+                        <strong>
+                            <t t-esc="object.sale_agent_id.full_name"/>
+                        </strong>
+                        has submitted a sale reservation for the unit
+                        <strong>
+                            <t t-esc="object.unit_details_id.unit_code"/>
+                        </strong>
+                        in the apartment
+                        <strong>
+                            <t t-esc="object.apartment_details_id.apartment_name"/>
+                        </strong>
+                        .
+                    </p>
+                    <p>
+                        Kindly review and confirm the submission at your earliest convenience.
+                    </p>
+                    <br/>
+                    <p>
+                        Best regards,
+                        <br/>
+                        <t t-esc="object.company_id.name"/>
+                    </p>
+                </div>
+            </field>
+            <field name="email_to">${object.sale_agent_id.crm_team_id.user_id.login}</field>
+            <field name="email_from">${object.company_id.email or user.email}</field>
+            <field name="lang">${object.sale_agent_id.crm_team_id.user_id.lang or 'en_US'}</field>
+            <field name="auto_delete" eval="True"/>
+        </record>
+
+        <!-- Tentatively Sold Request Reviewed Email Template -->
+        <record id="tentatively_sold_notification_email_template" model="mail.template">
+            <field name="name">Tentatively Sold Request Reviewed</field>
+            <field name="model_id" ref="vkd_property_management.model_unit_reservation"/>
+            <field name="subject">Tentative Sale Request Reviewed for Unit {{ object.unit_details_id.unit_code }}</field>
+            <field name="body_html" type="html">
+                <div>
+                    <p>
+                        Dear <strong><t t-esc="object.sale_agent_id.full_name"/></strong>,
+                        <br/><br/>
+                        We are pleased to inform you that the tentative sale request for the unit
+                        <strong><t t-esc="object.unit_details_id.unit_code"/></strong>, located in the apartment
+                        <strong><t t-esc="object.apartment_details_id.apartment_name"/></strong>, has been successfully reviewed and confirmed by the sales team leader.
+                    </p>
+                    <p>
+                        The unit is now marked as tentatively sold under your reservation. Please proceed with the necessary next steps to finalize the sale.
+                    </p>
+                    <p>
+                        If you have any questions or need further assistance, feel free to contact your team leader or the sales support team.
+                    </p>
+                    <br/>
+                    <p>
+                        Best regards,<br/>
+                        <strong><t t-esc="object.company_id.name"/></strong>
+                    </p>
+                </div>
+            </field>
+            <field name="email_to">${object.sale_agent_id.user_id.login}</field>
+            <field name="email_from">${object.company_id.email or user.email}</field>
+            <field name="lang">${object.sale_agent_id.user_id.lang or 'en_US'}</field>
+            <field name="auto_delete" eval="True"/>
+        </record>
+
+        <!-- Sales Agent Unit Hold Notification Email Template -->
+        <record id="sale_agent_hold_email_template" model="mail.template">
+            <field name="name">Sales Agent Unit Hold Notification</field>
+            <field name="model_id" ref="vkd_property_management.model_unit_reservation"/>
+            <field name="subject">Unit Hold Notification</field>
+            <field name="email_to">${object.sale_agent_id.crm_team_id.user_id.email}</field>
+            <field name="email_cc">${', '.join(agent.email for agent in object.env['sale.agent'].search([]) if agent.email)}</field>
+            <field name="body_html" type="html">
+                <div>
+                    <p>Dear Team,</p>
+                    <p>The sales agent <strong><t t-esc="object.sale_agent_id.full_name"/></strong> has held the unit <strong><t t-esc="object.unit_details_id.unit_code"/></strong>.</p>
+                    <p>Thank you.</p>
+                </div>
+            </field>
+        </record>
+
     </data>
 </odoo>

@@ -49,7 +49,7 @@ class UnitDetails(models.Model):
         ('available', 'Available'),
         ('hold', 'Hold'),
         ('special_hold', 'Special Hold'),
-        ('reserved', 'Reserved'),
+        ('reserved', 'Tentatively Sold'),
         ('sold', 'Sold'),
         ('cancel', 'Cancel'),
         ('reset', 'Reset to Draft'),
@@ -177,9 +177,6 @@ class UnitDetails(models.Model):
         self.write({'unit_status': 'available'})
 
     def action_set_reserved(self):
-        self.write({'unit_status': 'reserved'})
-
-    def action_set_sold(self):
         self.ensure_one()
 
         return {
@@ -194,7 +191,30 @@ class UnitDetails(models.Model):
         }
 
     def action_set_cancel(self):
-        self.write({'unit_status': 'cancel', 'is_unit_special_hold': False, 'is_unit_sold': False})
+        for unit in self:
+            # Check for confirmed sale orders
+            sale_orders = self.env['sale.order.line'].search([
+                ('product_id.default_code', '=', unit.unit_code)
+            ]).mapped('order_id')
+
+            confirmed_orders = sale_orders.filtered(lambda so: so.state == 'sale')
+            if confirmed_orders:
+                raise ValidationError(
+                    _("This unit has a confirmed sale order and cannot be canceled. "
+                      "Please handle the sale order(s) before canceling the unit.")
+                )
+
+            # Cancel quotation sale orders
+            quotation_orders = sale_orders.filtered(lambda so: so.state in ['draft', 'sent'])
+            for order in quotation_orders:
+                order.action_cancel()
+
+            # Update the unit status
+            unit.write({
+                'unit_status': 'cancel',
+                'is_unit_special_hold': False,
+                'is_unit_sold': False,
+            })
 
     def action_set_reset(self):
         self.write({'unit_status': 'draft'})
