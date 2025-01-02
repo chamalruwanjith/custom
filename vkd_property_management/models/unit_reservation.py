@@ -10,7 +10,7 @@ class UnitReservation(models.Model):
     _description = "UnitReservation"
 
     reservation_id = fields.Char(string="Reservation ID", readonly=True, copy=False, default='New')
-    sale_agent_id = fields.Many2one('sale.agent', string="Agent", required=True, tracking=True)
+    sale_agent_id = fields.Many2one(comodel_name='sale.agent', string="Agent", required=True, tracking=True)
     unit_details_id = fields.Many2one('unit.details', string="Unit", required=True, tracking=True)
     apartment_details_id = fields.Many2one(comodel_name='apartment.details', string='Apartment', required=True)
     floor_details_id = fields.Many2one(comodel_name='floor.details', string='Floor')
@@ -32,8 +32,8 @@ class UnitReservation(models.Model):
     is_million_completion = fields.Boolean(string='One Million Completion')
     first_sale_agent_id = fields.Many2one(comodel_name='sale.agent', string='Sale Agent 1')
     second_sale_agent_id = fields.Many2one(comodel_name='sale.agent', string='Sale Agent 2')
-    ihm_agent = fields.Char(string='IHM Agent')
-    assist_by = fields.Char(string='Assist By')
+    ihm_agent = fields.Many2one(comodel_name='ihm.agent', string='IHM Agent')
+    assist_by = fields.Many2one(comodel_name='sale.agent', string='Assist By')
     first_contact_number = fields.Char(string='Contact Number 1')
     second_contact_number = fields.Char(string='Contact Number 2')
     whatsapp_number = fields.Char(string='Whatsapp Number')
@@ -50,15 +50,21 @@ class UnitReservation(models.Model):
         ('whatsapp', 'WhatsApp'),
         ('chatbot', 'Chatbot'),
         ('hotline', 'Hotline'),
+        ('existing_customer', 'Existing Customer'),
+        ('existing_customer_recommendation', 'Existing Customer Recommendation'),
         ('other', 'Other'),
     ], string='Source')
     other_source_of_sale = fields.Char(string='Other Source')
-    is_existing_customer = fields.Boolean(string='Existing Customer')
     existing_apartment_id = fields.Many2one(comodel_name='apartment.details', string='Existing Project')
     existing_unit_id = fields.Many2one(comodel_name='unit.details', string='Existing Unit')
+    existing_customer_id = fields.Many2one(comodel_name='res.partner', string='Existing Customer')
+    existing_customer_apartment_id = fields.Many2one(comodel_name='apartment.details',
+                                                     string='Existing Customer Project')
+    existing_customer_unit_id = fields.Many2one(comodel_name='unit.details', string='Existing Customer Unit')
     is_ceiling_rate_applicable = fields.Boolean(string='Dollar/Ceiling Rate Not Applicable')
     crm_team_id = fields.Many2one(comodel_name='crm.team', string='Sales Team')
     sale_order_count = fields.Integer(string='Sale Orders', compute='_compute_sale_order_count')
+    product_pricelist_id = fields.Many2one(comodel_name='product.pricelist', string='Price List')
 
     @api.model
     def create(self, vals):
@@ -197,7 +203,7 @@ class UnitReservation(models.Model):
     def action_notify_sale_agent(self):
         """Notify the sale agent that their Tentatively Sold request is confirmed by the team leader."""
         for record in self:
-            if not record.sale_agent_id.email:
+            if not record.sale_agent_id.user_id.loging:
                 raise ValidationError(
                     _("The sales agent %s does not have an email configured.") % record.sale_agent_id.full_name
                 )
@@ -235,15 +241,35 @@ class UnitReservation(models.Model):
 
     @api.model
     def check_hold_expiration(self):
+        """Check if any holds have expired and notify relevant sales agents."""
         today = date.today()
         reservations = self.search([('reservation_status', '=', 'hold')])
+        template_reminder = self.env.ref(
+            'vkd_property_management.sale_agent_hold_reminder_template',
+            raise_if_not_found=False
+        )
+        template_expired = self.env.ref(
+            'vkd_property_management.sale_agent_expired_hold_notification_email_template',
+            raise_if_not_found=False
+        )
+
         for reservation in reservations:
-            if reservation.expiration_date and fields.Date.from_string(reservation.expiration_date) < today:
-                reservation.write({'reservation_status': 'expired'})
+            expiration_date = fields.Date.from_string(reservation.expiration_date)
+            if expiration_date:
+                # If the hold expires tomorrow, send a reminder email.
+                if expiration_date == today + timedelta(days=1) and template_reminder:
+                    template_reminder.send_mail(reservation.id, force_send=True)
+
+                # If the hold has expired, update status and notify agents.
+                elif expiration_date < today:
+                    reservation.write({'reservation_status': 'expired'})
+                    reservation._update_unit_status('available')
+
+                    if template_expired:
+                        template_expired.send_mail(reservation.id, force_send=True)
 
     @api.depends('reservation_id')
     def _compute_sale_order_count(self):
         """Compute the number of sale orders linked to this reservation."""
         for record in self:
             record.sale_order_count = self.env['sale.order'].search_count([('origin', '=', record.reservation_id)])
-

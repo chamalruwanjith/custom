@@ -13,6 +13,27 @@
                 <field name="floor_details_id"/>
                 <field name="unit_details_id"/>
                 <field name="reservation_status" widget="badge"/>
+                <field name="reserved_date"/>
+                <field name="expiration_date"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_unit_sold_tree" model="ir.ui.view">
+        <field name="name">unit.reservation.view.tree</field>
+        <field name="model">unit.reservation</field>
+        <field name="arch" type="xml">
+            <tree string="Sold Units">
+                <field name="reservation_id"/>
+                <field name="sale_agent_id"/>
+                <field name="apartment_details_id"/>
+                <field name="unit_details_id"/>
+                <field name="reservation_status" widget="badge"/>
+                <field name="reserved_date"/>
+                <field name="partner_id"/>
+                <field name="discounted_price"/>
+                <field name="paid_amount"/>
+                <field name="source_of_sale"/>
             </tree>
         </field>
     </record>
@@ -28,7 +49,7 @@
                     <button name="action_unit_reserve" type="object" string="Tentatively Sold" class="oe_highlight"
                             invisible="reservation_status in ['reserved', 'cancel', 'draft', 'sold']"/>
                     <button name="action_set_cancel" type="object" string="Cancel" class="oe_highlight"
-                            invisible="reservation_status in ['cancel', 'draft']"/>
+                            invisible="reservation_status in ['cancel', 'draft', 'expired']"/>
                     <button name="action_set_reset" type="object" string="Reset to Draft" class="oe_highlight"
                             invisible="reservation_status in ['reset', 'hold', 'reserved', 'sold', 'draft', 'expired']"/>
                     <field name="reservation_status" widget='statusbar'
@@ -69,20 +90,19 @@
                             <group>
                                 <group string="Customer">
                                     <field name="partner_id" readonly="reservation_status != 'hold'"/>
-                                    <field name="is_existing_customer" readonly="reservation_status != 'hold'"/>
-                                    <field name="existing_apartment_id" readonly="reservation_status != 'hold'"
-                                           invisible="is_existing_customer == False"/>
-                                    <field name="existing_unit_id" readonly="reservation_status != 'hold'"
-                                           invisible="is_existing_customer == False"
-                                           domain="[('apartment_details_id', '=', existing_apartment_id)]"/>
                                     <field name="first_contact_number" readonly="reservation_status != 'hold'"/>
                                     <field name="second_contact_number" readonly="reservation_status != 'hold'"/>
                                     <field name="whatsapp_number" readonly="reservation_status != 'hold'"/>
                                     <field name="source_of_sale" readonly="reservation_status != 'hold'"/>
-                                    <field name="other_source_of_sale" readonly="reservation_status != 'hold'"
-                                           invisible="source_of_sale != 'other'"/>
+                                    <field name="existing_apartment_id" readonly="reservation_status != 'hold'" invisible="source_of_sale != 'existing_customer'"/>
+                                    <field name="existing_unit_id" readonly="reservation_status != 'hold'" invisible="source_of_sale != 'existing_customer'"/>
+                                    <field name="existing_customer_id" readonly="reservation_status != 'hold'" invisible="source_of_sale != 'existing_customer_recommendation'"/>
+                                    <field name="existing_customer_apartment_id" readonly="reservation_status != 'hold'" invisible="source_of_sale != 'existing_customer_recommendation'"/>
+                                    <field name="existing_customer_unit_id" readonly="reservation_status != 'hold'" invisible="source_of_sale != 'existing_customer_recommendation'"/>
+                                    <field name="other_source_of_sale" readonly="reservation_status != 'hold'" invisible="source_of_sale != 'other'"/>
                                 </group>
                                 <group string="Pricing">
+                                    <field name="product_pricelist_id" readonly="reservation_status != 'hold'"/>
                                     <field name="discounted_price" readonly="reservation_status != 'hold'"/>
                                     <field name="paid_amount" readonly="reservation_status != 'hold'"/>
                                     <field name="is_million_completion" readonly="reservation_status != 'hold'"/>
@@ -108,24 +128,25 @@
     </record>
 
     <record id="action_unit_reservation" model="ir.actions.act_window">
-        <field name="name">Unit Reservation</field>
+        <field name="name">Hold Units</field>
         <field name="res_model">unit.reservation</field>
         <field name="view_mode">tree,form</field>
         <field name="domain">[('reservation_status', '=', ('draft', 'hold', 'expired', 'cancel'))]</field>
     </record>
 
     <record id="action_tentatively_sold" model="ir.actions.act_window">
-        <field name="name">Unit Reservation</field>
+        <field name="name">Tentatively Sold Units</field>
         <field name="res_model">unit.reservation</field>
         <field name="view_mode">tree,form</field>
         <field name="domain">[('reservation_status', '=', 'reserved')]</field>
     </record>
 
     <record id="action_unit_sold" model="ir.actions.act_window">
-        <field name="name">Unit Reservation</field>
+        <field name="name">Sold Units</field>
         <field name="res_model">unit.reservation</field>
         <field name="view_mode">tree,form</field>
         <field name="domain">[('reservation_status', '=', 'sold')]</field>
+        <field name="view_id" ref="view_unit_sold_tree"/>
     </record>
 
     <menuitem id="menu_unit_reservation"

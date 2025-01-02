@@ -37,8 +37,10 @@
         'views/tower_details_views.xml',
         'views/res_currency_views.xml',
         'views/product_template_views.xml',
+        'views/ihm_agent_views.xml',
         'wizards/sale_customer_select_views.xml',
     ],
+
     'license': 'OPL-1',
     'application': True,
     'installable': True,

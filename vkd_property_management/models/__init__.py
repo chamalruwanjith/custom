@@ -1,5 +1,6 @@
 from . import apartment_details
 from . import floor_details
+from . import ihm_agent
 from . import product_template
 from . import res_config_settings
 from . import res_currency

@@ -20,17 +20,15 @@ class SaleCustomerSelect(models.TransientModel):
 
         # Create the Sale Order with the selected customer
         sale_order = self.env['sale.order'].create({
-            'partner_id': self.partner_id.id,  # Set the customer
+            'partner_id': self.partner_id.id,
             'order_line': [(0, 0, {
                 'product_id': product.id,
-                'product_uom_qty': 1,  # Default quantity
-                'price_unit': product.lst_price,  # Use product's list price
+                'product_uom_qty': 1,
+                'price_unit': product.lst_price,
             })]
         })
 
-        # Set unit status to sold
         unit.write({'unit_status': 'reserved'})
-        # unit.write({'is_unit_sold': True})
 
         # Return an action to open the Sale Order form view
         return {
@@ -38,5 +36,5 @@ class SaleCustomerSelect(models.TransientModel):
             'type': 'ir.actions.act_window',
             'view_mode': 'form',
             'res_model': 'sale.order',
-            'res_id': sale_order.id,  # Open the created Sale Order
+            'res_id': sale_order.id,
         }

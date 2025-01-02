@@ -93,26 +93,43 @@
         <record id="tentatively_sold_notification_email_template" model="mail.template">
             <field name="name">Tentatively Sold Request Reviewed</field>
             <field name="model_id" ref="vkd_property_management.model_unit_reservation"/>
-            <field name="subject">Tentative Sale Request Reviewed for Unit {{ object.unit_details_id.unit_code }}</field>
+            <field name="subject">Tentative Sale Request Reviewed for Unit {{ object.unit_details_id.unit_code }}
+            </field>
             <field name="body_html" type="html">
                 <div>
                     <p>
-                        Dear <strong><t t-esc="object.sale_agent_id.full_name"/></strong>,
-                        <br/><br/>
+                        Dear
+                        <strong>
+                            <t t-esc="object.sale_agent_id.full_name"/>
+                        </strong>
+                        ,
+                        <br/>
+                        <br/>
                         We are pleased to inform you that the tentative sale request for the unit
-                        <strong><t t-esc="object.unit_details_id.unit_code"/></strong>, located in the apartment
-                        <strong><t t-esc="object.apartment_details_id.apartment_name"/></strong>, has been successfully reviewed and confirmed by the sales team leader.
+                        <strong>
+                            <t t-esc="object.unit_details_id.unit_code"/>
+                        </strong>
+                        , located in the apartment
+                        <strong>
+                            <t t-esc="object.apartment_details_id.apartment_name"/>
+                        </strong>
+                        , has been successfully reviewed and confirmed by the sales team leader.
                     </p>
                     <p>
-                        The unit is now marked as tentatively sold under your reservation. Please proceed with the necessary next steps to finalize the sale.
+                        The unit is now marked as tentatively sold under your reservation. Please proceed with the
+                        necessary next steps to finalize the sale.
                     </p>
                     <p>
-                        If you have any questions or need further assistance, feel free to contact your team leader or the sales support team.
+                        If you have any questions or need further assistance, feel free to contact your team leader or
+                        the sales support team.
                     </p>
                     <br/>
                     <p>
-                        Best regards,<br/>
-                        <strong><t t-esc="object.company_id.name"/></strong>
+                        Best regards,
+                        <br/>
+                        <strong>
+                            <t t-esc="object.company_id.name"/>
+                        </strong>
                     </p>
                 </div>
             </field>
@@ -128,14 +145,109 @@
             <field name="model_id" ref="vkd_property_management.model_unit_reservation"/>
             <field name="subject">Unit Hold Notification</field>
             <field name="email_to">${object.sale_agent_id.crm_team_id.user_id.email}</field>
-            <field name="email_cc">${', '.join(agent.email for agent in object.env['sale.agent'].search([]) if agent.email)}</field>
+            <field name="email_cc">
+                ${', '.join(agent.email for agent in object.env['sale.agent'].search([]) if agent.email)}
+            </field>
             <field name="body_html" type="html">
                 <div>
                     <p>Dear Team,</p>
-                    <p>The sales agent <strong><t t-esc="object.sale_agent_id.full_name"/></strong> has held the unit <strong><t t-esc="object.unit_details_id.unit_code"/></strong>.</p>
+                    <p>The sales agent
+                        <strong>
+                            <t t-esc="object.sale_agent_id.full_name"/>
+                        </strong>
+                        has hold the unit
+                        <strong>
+                            <t t-esc="object.unit_details_id.unit_code"/>
+                        </strong>
+                        .
+                    </p>
                     <p>Thank you.</p>
                 </div>
             </field>
+        </record>
+
+        <!-- Sales Agent Unit Hold Expiration Notification Email Template -->
+        <record id="sale_agent_expired_hold_notification_email_template" model="mail.template">
+            <field name="name">Unit Hold Expired Notification</field>
+            <field name="model_id" ref="model_unit_reservation"/>
+            <field name="subject">Unit Hold Expired: {{ object.unit_details_id.name }}</field>
+            <field name="email_from">${(object.company_id.email or 'noreply@yourdomain.com')|safe}</field>
+            <field name="email_to">${object.sale_agent_id.crm_team_id.user_id.email}</field>
+            <field name="email_cc">
+                ${', '.join(agent.email for agent in object.env['sale.agent'].search([]) if agent.email)}
+            </field>
+            <field name="body_html" type="html">
+                <div>
+                    <p>Dear Sales Agent,</p>
+                    <p>The hold on the unit
+                        <strong>{{ object.unit_details_id.unit_code }}</strong>
+                        in the apartment
+                        <strong>{{ object.apartment_details_id.apartment_name }}</strong>
+                        has expired and is now available for holding.
+                    </p>
+                    <p>Details:</p>
+                    <ul>
+                        <li>
+                            <strong>Unit:</strong>
+                            {{ object.unit_details_id.unit_code }}
+                        </li>
+                        <li>
+                            <strong>Floor:</strong>
+                            {{ object.floor_details_id.floor_name }}
+                        </li>
+                        <li>
+                            <strong>Apartment:</strong>
+                            {{ object.apartment_details_id.apartment_name }}
+                        </li>
+                        <li>
+                            <strong>Expiration Date:</strong>
+                            {{ object.expiration_date }}
+                        </li>
+                    </ul>
+                    <p>Thank you.</p>
+                    <p>
+                        <strong>{{ object.company_id.name }}</strong>
+                    </p>
+                </div>
+            </field>
+        </record>
+
+        <!-- Sales Agent Unit Hold Reminder Email Template -->
+        <record id="sale_agent_hold_reminder_template" model="mail.template">
+            <field name="name">Hold Expiration Reminder</field>
+            <field name="model_id" ref="vkd_property_management.model_unit_reservation"/>
+            <field name="subject">Reminder: Your Unit Hold Will Expire Tomorrow</field>
+            <field name="body_html" type="html">
+                <div>
+                    <p>Dear
+                        <strong>
+                            <t t-esc="object.sale_agent_id.full_name"/>
+                        </strong>
+                        ,
+                    </p>
+                    <p>
+                        This is a reminder that your hold for the unit
+                        <strong>
+                            <t t-esc="object.unit_details_id.unit_code"/>
+                        </strong>
+                        in the apartment
+                        <strong>
+                            <t t-esc="object.apartment_details_id.apartment_name"/>
+                        </strong>
+                        will expire tomorrow.
+                    </p>
+                    <p>
+                        Please take the necessary steps to finalize the reservation or contact your team leader if you
+                        require assistance.
+                    </p>
+                    <p>Best regards,<br/>The Sales Team
+                    </p>
+                </div>
+            </field>
+            <field name="email_to">${object.sale_agent_id.user_id.login}</field>
+            <field name="email_from">${object.company_id.email or user.email}</field>
+            <field name="lang">${object.sale_agent_id.user_id.lang or 'en_US'}</field>
+            <field name="auto_delete" eval="True"/>
         </record>
 
     </data>
