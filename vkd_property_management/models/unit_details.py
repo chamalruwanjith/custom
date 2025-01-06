@@ -75,7 +75,7 @@ class UnitDetails(models.Model):
         """Set is_property_user based on the current user's group."""
         user = self.env.user
         for record in self:
-            if user.has_group('vkd_property_management.group_property_management_admin'):
+            if user.has_group('vkd_property_management.group_property_management_manager'):
                 record.is_property_user = False
             elif user.has_group('vkd_property_management.group_property_management_user'):
                 record.is_property_user = True
@@ -174,7 +174,7 @@ class UnitDetails(models.Model):
                 })
 
     def action_set_available(self):
-        self.write({'unit_status': 'available'})
+        self.write({'unit_status': 'available', 'is_unit_special_hold': False})
 
     def action_set_reserved(self):
         self.ensure_one()

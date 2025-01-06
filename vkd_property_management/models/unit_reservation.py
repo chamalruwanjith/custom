@@ -1,6 +1,7 @@
 from datetime import timedelta, date
+from markupsafe import Markup
 from odoo import api, fields, models, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, UserError
 
 
 class UnitReservation(models.Model):
@@ -15,6 +16,8 @@ class UnitReservation(models.Model):
     apartment_details_id = fields.Many2one(comodel_name='apartment.details', string='Apartment', required=True)
     floor_details_id = fields.Many2one(comodel_name='floor.details', string='Floor')
     reserved_date = fields.Date(string="Hold Date", readonly=True)
+    tentatively_sold_date = fields.Date(string="Tentatively Sold Date", readonly=True)
+    sold_date = fields.Date(string="Sold Date", readonly=True)
     expiration_date = fields.Date(string="Expiration Date", compute="_compute_expiration_date", store=True)
     reservation_status = fields.Selection([
         ('draft', 'Draft'),
@@ -26,6 +29,8 @@ class UnitReservation(models.Model):
         ('reset', 'Reset to Draft'),
     ], string='Status', default='draft', tracking=True)
     company_id = fields.Many2one(comodel_name='res.company', string='Company', default=lambda self: self.env.company)
+    user_id = fields.Many2one(comodel_name='res.users', string='User', related='sale_agent_id.user_id', store=True,
+                              readonly=True)
     partner_id = fields.Many2one(comodel_name='res.partner', string='Customer Name')
     discounted_price = fields.Float(string='Discounted Sales Price')
     paid_amount = fields.Float(string='Paid Amount')
@@ -66,6 +71,23 @@ class UnitReservation(models.Model):
     sale_order_count = fields.Integer(string='Sale Orders', compute='_compute_sale_order_count')
     product_pricelist_id = fields.Many2one(comodel_name='product.pricelist', string='Price List')
 
+    condition_letter_attachment = fields.Many2one('ir.attachment', string="Condition Letter PDF Attachment")
+    payment_reference_attachment1 = fields.Many2one('ir.attachment', string="Payment Reference Attachment 1")
+    payment_reference_attachment2 = fields.Many2one('ir.attachment', string="Payment Reference Attachment 2")
+    condition_letter_file = fields.Binary(related="condition_letter_attachment.datas", string="Condition Letter File",
+                                          readonly=True)
+    condition_letter_filename = fields.Char(related="condition_letter_attachment.name",
+                                            string="Condition Letter Filename", readonly=True)
+    payment_reference_file1 = fields.Binary(related="payment_reference_attachment1.datas",
+                                            string="Payment Reference File 1", readonly=True)
+    payment_reference_filename1 = fields.Char(related="payment_reference_attachment1.name",
+                                              string="Payment Reference Filename", readonly=True)
+    payment_reference_file2 = fields.Binary(related="payment_reference_attachment2.datas",
+                                            string="Payment Reference File 2", readonly=True)
+    payment_reference_filename2 = fields.Char(related="payment_reference_attachment2.name",
+                                              string="Payment Reference Filename", readonly=True)
+    is_team_leader_notify_sale = fields.Boolean(string="Team Leader Notify Sale", default=False, readonly=True)
+
     @api.model
     def create(self, vals):
         sale_agent_id = vals.get('sale_agent_id')
@@ -99,7 +121,7 @@ class UnitReservation(models.Model):
         if current_holds >= hold_limit:
             error_message = _(
                 'The agent %s has reached the hold limit of %s units for the apartment %s.'
-            ) % (self.sale_agent_id.full_name, hold_limit, self.apartment_details_id.name)
+            ) % (self.sale_agent_id.full_name, hold_limit, self.apartment_details_id.apartment_name)
             raise ValidationError(error_message)
         self.write({'reservation_status': 'hold', 'reserved_date': date.today()})
         self._update_unit_status('hold')
@@ -129,9 +151,10 @@ class UnitReservation(models.Model):
                 'price_unit': self.discounted_price or product.lst_price,
             })],
             'origin': self.reservation_id,
+            'pricelist_id': self.product_pricelist_id,
         })
 
-        self.write({'reservation_status': 'reserved'})
+        self.write({'reservation_status': 'reserved', 'tentatively_sold_date': fields.Date.today()})
         self._update_unit_status('reserved')
 
         self.action_notify_sale_team_leader()
@@ -164,10 +187,12 @@ class UnitReservation(models.Model):
 
             reservation.write({
                 'reservation_status': 'cancel',
+                'tentatively_sold_date': False,
+                'sold_date': False,
             })
 
             if reservation.unit_details_id:
-                reservation._update_unit_status('cancel')
+                reservation._update_unit_status('available')
 
     def action_set_reset(self):
         self.write({'reservation_status': 'draft'})
@@ -188,8 +213,25 @@ class UnitReservation(models.Model):
         """Notify the team leader about the sales submission."""
         for record in self:
             team_leader = record.sale_agent_id.crm_team_id.user_id
+            odoobot_id = self.env.ref("base.partner_root").id
 
-            if not team_leader or not team_leader.email:
+            notification_message = Markup(_("""
+                            <p><strong>Sales Submission Alert</strong></p>
+                            <p>%s submitted a reservation for Unit %s in %s.</p>
+                        """))
+
+            # Send Notification to the team leader
+            if team_leader:
+                channel = self.env['discuss.channel'].channel_get([odoobot_id, team_leader])
+                channel.sudo().message_post(
+                    body=notification_message,
+                    author_id=odoobot_id,
+                    message_type='notification',
+                    subtype_xmlid='mail.mt_note',
+                    partner_ids=[team_leader.partner_id.id],
+                )
+
+            if not team_leader or not team_leader.login:
                 raise ValidationError(
                     _("The team leader for the sales agent %s does not have an email configured.")
                     % record.sale_agent_id.full_name
@@ -203,7 +245,7 @@ class UnitReservation(models.Model):
     def action_notify_sale_agent(self):
         """Notify the sale agent that their Tentatively Sold request is confirmed by the team leader."""
         for record in self:
-            if not record.sale_agent_id.user_id.loging:
+            if not record.sale_agent_id.user_id.login:
                 raise ValidationError(
                     _("The sales agent %s does not have an email configured.") % record.sale_agent_id.full_name
                 )

@@ -7,7 +7,7 @@
               name="Property Management"
               sequence="1"
               web_icon="vkd_property_management,static/description/icon.png"
-              groups="group_property_management_user,group_property_management_admin"/>
+              groups="group_property_management_user,group_property_management_manager"/>
 
     <menuitem id="menu_apartment_management"
               name="Apartment"
@@ -23,26 +23,26 @@
               name="Sale Agent"
               parent="property_management_root"
               sequence="4"
-              groups="group_property_management_admin"/>
+              groups="group_property_management_manager"/>
 
     <menuitem id="menu_property_management_configuration"
               name="Configurations"
               parent="property_management_root"
               sequence="5"
-              groups="group_property_management_admin"/>
+              groups="group_property_management_manager"/>
 
     <menuitem id="menu_property_management_currency"
               name="Currency Rates"
               parent="menu_property_management_configuration"
               action="base.action_currency_form"
               sequence="2"
-              groups="group_property_management_admin"/>
+              groups="group_property_management_manager"/>
 
     <menuitem id="menu_sale_agent_teams"
               name="Sale Agent Teams"
               parent="menu_sale_agent"
               action="sales_team.crm_team_action_config"
               sequence="2"
-              groups="group_property_management_admin"/>
+              groups="group_property_management_manager"/>
 
 </odoo>

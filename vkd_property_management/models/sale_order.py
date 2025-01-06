@@ -1,4 +1,4 @@
-from odoo import models, api
+from odoo import api, fields, models, _
 
 
 class SaleOrder(models.Model):
@@ -15,10 +15,9 @@ class SaleOrder(models.Model):
             if order.origin:
                 reservation = self.env['unit.reservation'].search([('reservation_id', '=', order.origin)], limit=1)
                 if reservation:
-                    reservation.write({'reservation_status': 'sold'})
+                    reservation.write({'reservation_status': 'sold', 'sold_date': fields.Date.today()})
                     reservation._update_unit_status('sold')
                     reservation.action_notify_sale_agent()
-            else:
                 for line in order.order_line:
                     product = line.product_id
                     if product:

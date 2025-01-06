@@ -82,7 +82,10 @@
                         <group>
                             <field name="reserved_date"/>
                             <field name="expiration_date"/>
+                            <field name="tentatively_sold_date" invisible="tentatively_sold_date == False"/>
+                            <field name="sold_date" invisible="sold_date == False"/>
                             <field name="company_id" invisible="1"/>
+                            <field name="user_id" invisible="1"/>
                         </group>
                     </group>
                     <notebook>
@@ -94,12 +97,18 @@
                                     <field name="second_contact_number" readonly="reservation_status != 'hold'"/>
                                     <field name="whatsapp_number" readonly="reservation_status != 'hold'"/>
                                     <field name="source_of_sale" readonly="reservation_status != 'hold'"/>
-                                    <field name="existing_apartment_id" readonly="reservation_status != 'hold'" invisible="source_of_sale != 'existing_customer'"/>
-                                    <field name="existing_unit_id" readonly="reservation_status != 'hold'" invisible="source_of_sale != 'existing_customer'"/>
-                                    <field name="existing_customer_id" readonly="reservation_status != 'hold'" invisible="source_of_sale != 'existing_customer_recommendation'"/>
-                                    <field name="existing_customer_apartment_id" readonly="reservation_status != 'hold'" invisible="source_of_sale != 'existing_customer_recommendation'"/>
-                                    <field name="existing_customer_unit_id" readonly="reservation_status != 'hold'" invisible="source_of_sale != 'existing_customer_recommendation'"/>
-                                    <field name="other_source_of_sale" readonly="reservation_status != 'hold'" invisible="source_of_sale != 'other'"/>
+                                    <field name="existing_apartment_id" readonly="reservation_status != 'hold'"
+                                           invisible="source_of_sale != 'existing_customer'"/>
+                                    <field name="existing_unit_id" readonly="reservation_status != 'hold'"
+                                           invisible="source_of_sale != 'existing_customer'"/>
+                                    <field name="existing_customer_id" readonly="reservation_status != 'hold'"
+                                           invisible="source_of_sale != 'existing_customer_recommendation'"/>
+                                    <field name="existing_customer_apartment_id" readonly="reservation_status != 'hold'"
+                                           invisible="source_of_sale != 'existing_customer_recommendation'"/>
+                                    <field name="existing_customer_unit_id" readonly="reservation_status != 'hold'"
+                                           invisible="source_of_sale != 'existing_customer_recommendation'"/>
+                                    <field name="other_source_of_sale" readonly="reservation_status != 'hold'"
+                                           invisible="source_of_sale != 'other'"/>
                                 </group>
                                 <group string="Pricing">
                                     <field name="product_pricelist_id" readonly="reservation_status != 'hold'"/>
@@ -114,6 +123,23 @@
                                     <field name="ihm_agent" readonly="reservation_status != 'hold'"/>
                                     <field name="assist_by" readonly="reservation_status != 'hold'"/>
                                     <field name="crm_team_id" readonly="reservation_status != 'hold'"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Attachments" invisible="reservation_status in ['reset', 'draft', 'expired']">
+                            <group>
+                                <group string="Attachments">
+                                    <field name="condition_letter_file" filename="condition_letter_filename"
+                                           widget="pdf_viewer"
+                                           height="100px" string="Condition Letter"/>
+                                </group>
+                                <group string="Payment References">
+                                    <group>
+                                        <field name="payment_reference_file1" filename="payment_reference_filename1"
+                                               widget="image" string="Payment Reference 1"/>
+                                        <field name="payment_reference_file2" filename="payment_reference_filename2"
+                                               widget="image" string="Payment Reference 2"/>
+                                    </group>
                                 </group>
                             </group>
                         </page>

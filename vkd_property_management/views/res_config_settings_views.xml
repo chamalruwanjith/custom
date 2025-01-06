@@ -40,6 +40,6 @@
               parent="menu_property_management_configuration"
               action="action_property_management_configuration"
               sequence="1"
-              groups="group_property_management_admin"/>
+              groups="group_property_management_manager"/>
 
 </odoo>
