@@ -55,8 +55,8 @@ class UnitReservation(models.Model):
         ('whatsapp', 'WhatsApp'),
         ('chatbot', 'Chatbot'),
         ('hotline', 'Hotline'),
-        ('existing_customer', 'Existing Customer'),
-        ('existing_customer_recommendation', 'Existing Customer Recommendation'),
+        ('Existing_Customer', 'Existing Customer'),
+        ('Existing_Customer_Recommendation', 'Existing Customer Recommendation'),
         ('other', 'Other'),
     ], string='Source')
     other_source_of_sale = fields.Char(string='Other Source')
@@ -111,6 +111,11 @@ class UnitReservation(models.Model):
             vals['reservation_id'] = self.env['ir.sequence'].next_by_code('unit.reservation') or 'New'
         return super(UnitReservation, self).create(vals)
 
+    @api.model
+    def write_and_return(self, reservation_id, vals):
+        self.browse(reservation_id).write(vals)
+        return True
+
     def action_unit_hold(self):
         hold_limit = int(self.env['ir.config_parameter'].sudo().get_param('vkd_property_management.hold_unit_limit'))
         current_holds = self.env['unit.reservation'].search_count([
@@ -151,7 +156,7 @@ class UnitReservation(models.Model):
                 'price_unit': self.discounted_price or product.lst_price,
             })],
             'origin': self.reservation_id,
-            'pricelist_id': self.product_pricelist_id,
+            'pricelist_id': self.product_pricelist_id.id,
         })
 
         self.write({'reservation_status': 'reserved', 'tentatively_sold_date': fields.Date.today()})
@@ -166,6 +171,35 @@ class UnitReservation(models.Model):
             'res_model': 'sale.order',
             'res_id': sale_order.id,
         }
+
+    def action_unit_reserve_from_agent(self):
+        """Reserve the unit and create a Sales Order Quotation."""
+        self.ensure_one()
+
+        unit = self.unit_details_id
+        product = self.env['product.product'].search([('default_code', '=', unit.unit_code)], limit=1)
+
+        if not product:
+            raise ValidationError(
+                _('No product found for this unit. Please ensure the product is created in Inventory.'))
+
+        sale_order = self.env['sale.order'].create({
+            'partner_id': self.partner_id.id,
+            'pricelist_id': self.product_pricelist_id.id,
+            'order_line': [(0, 0, {
+                'product_id': product.id,
+                'product_uom_qty': 1,
+                'price_unit': self.discounted_price or product.lst_price,
+            })],
+            'origin': self.reservation_id,
+        })
+
+        self.write({'reservation_status': 'reserved'})
+        self._update_unit_status('reserved')
+
+        self.action_notify_sale_team_leader()
+
+        return True
 
     def action_set_cancel(self):
         """Cancel the reservation if there are no confirmed sale orders linked to the reserved unit."""
@@ -222,13 +256,12 @@ class UnitReservation(models.Model):
 
             # Send Notification to the team leader
             if team_leader:
-                channel = self.env['discuss.channel'].channel_get([odoobot_id, team_leader])
+                channel = self.env['discuss.channel'].channel_get([odoobot_id, team_leader.partner_id.id])
                 channel.sudo().message_post(
                     body=notification_message,
                     author_id=odoobot_id,
-                    message_type='notification',
-                    subtype_xmlid='mail.mt_note',
-                    partner_ids=[team_leader.partner_id.id],
+                    message_type='comment',
+                    subtype_xmlid='mail.mt_comment',
                 )
 
             if not team_leader or not team_leader.login:

@@ -118,6 +118,7 @@
                                     <field name="is_ceiling_rate_applicable" readonly="reservation_status != 'hold'"/>
                                 </group>
                                 <group string="Sales">
+                                    <field name="tentatively_sold_date" readonly="reservation_status != 'hold'"/>
                                     <field name="first_sale_agent_id" readonly="reservation_status != 'hold'"/>
                                     <field name="second_sale_agent_id" readonly="reservation_status != 'hold'"/>
                                     <field name="ihm_agent" readonly="reservation_status != 'hold'"/>
