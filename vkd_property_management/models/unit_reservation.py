@@ -128,7 +128,7 @@ class UnitReservation(models.Model):
                 'The agent %s has reached the hold limit of %s units for the apartment %s.'
             ) % (self.sale_agent_id.full_name, hold_limit, self.apartment_details_id.apartment_name)
             raise ValidationError(error_message)
-        if self.unit_details_id.reservation_status == 'hold':
+        if self.unit_details_id.unit_status == 'hold':
             error_message = _('This unit is already on hold.')
             raise ValidationError(error_message)
         self.write({'reservation_status': 'hold', 'reserved_date': date.today()})
