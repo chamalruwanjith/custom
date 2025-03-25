@@ -107,6 +107,9 @@ class UnitReservation(models.Model):
                     'The agent %s has reached the hold limit of %s units for the apartment %s.'
                 ) % (agent.full_name, hold_limit, apartment.apartment_name)
                 raise ValidationError(error_message)
+            if self.unit_details_id.unit_status == 'hold':
+                error_message = _('This unit is already on hold.')
+                raise ValidationError(error_message)
         if vals.get('reservation_id', 'New') == 'New':
             vals['reservation_id'] = self.env['ir.sequence'].next_by_code('unit.reservation') or 'New'
         return super(UnitReservation, self).create(vals)
