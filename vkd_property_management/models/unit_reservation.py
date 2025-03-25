@@ -92,6 +92,15 @@ class UnitReservation(models.Model):
     def create(self, vals):
         sale_agent_id = vals.get('sale_agent_id')
         apartment_id = vals.get('apartment_details_id')
+        unit_id = vals.get('unit_details_id')
+
+        # Check if unit is already on hold before creating any record
+        if unit_id:
+            unit = self.env['unit.details'].browse(unit_id)
+            if unit.unit_status == 'hold':
+                error_message = _('This unit is already on hold. Cannot create a reservation.')
+                raise ValidationError(error_message)
+
         if sale_agent_id and apartment_id:
             hold_limit = int(
                 self.env['ir.config_parameter'].sudo().get_param('vkd_property_management.hold_unit_limit'))
@@ -107,9 +116,7 @@ class UnitReservation(models.Model):
                     'The agent %s has reached the hold limit of %s units for the apartment %s.'
                 ) % (agent.full_name, hold_limit, apartment.apartment_name)
                 raise ValidationError(error_message)
-            if self.unit_details_id.unit_status == 'hold':
-                error_message = _('This unit is already on hold.')
-                raise ValidationError(error_message)
+
         if vals.get('reservation_id', 'New') == 'New':
             vals['reservation_id'] = self.env['ir.sequence'].next_by_code('unit.reservation') or 'New'
         return super(UnitReservation, self).create(vals)
