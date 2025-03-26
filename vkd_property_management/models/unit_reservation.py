@@ -269,7 +269,7 @@ class UnitReservation(models.Model):
 
             # Send Notification to the team leader
             if team_leader:
-                channel = self.env['discuss.channel'].channel_get([odoobot_id, team_leader.partner_id.id])
+                channel = self.env['discuss.channel'].channel_get([team_leader.partner_id.id])
                 channel.sudo().message_post(
                     body=notification_message,
                     author_id=odoobot_id,
