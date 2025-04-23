@@ -143,6 +143,7 @@ class UnitReservation(models.Model):
             raise ValidationError(error_message)
         self.write({'reservation_status': 'hold', 'reserved_date': date.today()})
         self._update_unit_status('hold')
+        self._update_unit_activity('hold')
 
         template = self.env.ref('vkd_property_management.sale_agent_hold_email_template', raise_if_not_found=False)
         if template:
@@ -174,6 +175,7 @@ class UnitReservation(models.Model):
 
         self.write({'reservation_status': 'reserved', 'tentatively_sold_date': fields.Date.today()})
         self._update_unit_status('reserved')
+        self._update_unit_activity('reserved')
 
         self.action_notify_sale_team_leader()
 
@@ -209,6 +211,7 @@ class UnitReservation(models.Model):
 
         self.write({'reservation_status': 'reserved'})
         self._update_unit_status('reserved')
+        self._update_unit_activity('reserved')
 
         self.action_notify_sale_team_leader()
 
@@ -240,6 +243,7 @@ class UnitReservation(models.Model):
 
             if reservation.unit_details_id:
                 reservation._update_unit_status('available')
+                reservation._update_unit_activity('cancel')
 
     def action_set_reset(self):
         self.write({'reservation_status': 'draft'})
@@ -315,6 +319,16 @@ class UnitReservation(models.Model):
             }
             new_status = status_map.get(status, 'available')
             self.unit_details_id.write({'unit_status': new_status})
+
+    def _update_unit_activity(self, activity_type):
+        self.ensure_one()
+        self.env['unit.activity'].create({
+            'unit_reservation_id': self.id,
+            'user_id': self.env.uid,
+            'unit_details_id': self.unit_details_id.id,
+            'apartment_details_id': self.apartment_details_id.id,
+            'activity_type': activity_type,
+        })
 
     @api.depends('reserved_date')
     def _compute_expiration_date(self):

@@ -96,20 +96,20 @@ class UnitDetails(models.Model):
     @api.depends('floor_details_id', 'unit_name', 'unit_type', 'apartment_details_id')
     def _compute_unit_code(self):
         """Generates unit code based on type, floor, or apartment details,
-        using the last two characters of unit_name."""
+        using the last two characters of unit_name with 'U' prefix."""
         for record in self:
-            unit_suffix = record.unit_name[-2:] if record.unit_name else ''
+            unit_suffix = f"U{record.unit_name[-2:]}" if record.unit_name else ''
 
             if record.unit_type == 'unit':
                 if record.floor_details_id:
                     floor_name = record.floor_details_id.floor_name
-                    record.unit_code = f"{floor_name}-{unit_suffix}"
+                    record.unit_code = f"{floor_name}/{unit_suffix}"
                 else:
                     record.unit_code = unit_suffix
             else:
                 if record.apartment_details_id:
                     apartment_prefix = record.apartment_details_id.prefix_for_villas or ''
-                    record.unit_code = f"{apartment_prefix}-{unit_suffix}"
+                    record.unit_code = f"{apartment_prefix}/{unit_suffix}"
                 else:
                     record.unit_code = unit_suffix
 
@@ -129,7 +129,16 @@ class UnitDetails(models.Model):
                 'categ_id': self.env.ref('product.product_category_all').id,
                 'company_id': record.company_id.id,
             }
-            product_template.create(product_vals)
+            new_product = product_template.create(product_vals)
+
+            warehouse = self.env['stock.warehouse'].search(
+                [('company_id', '=', record.company_id.id)], limit=1
+            )
+            self.env['stock.quant'].with_context(inventory_mode=True).create({
+                'product_id': new_product.product_variant_id.id,
+                'location_id': warehouse.lot_stock_id.id,
+                'inventory_quantity': 1.0,
+            })._apply_inventory()
 
         return record
 
@@ -215,12 +224,23 @@ class UnitDetails(models.Model):
                 'is_unit_special_hold': False,
                 'is_unit_sold': False,
             })
+            self._update_unit_activity('cancel')
 
     def action_set_reset(self):
         self.write({'unit_status': 'draft'})
 
     def action_set_special_hold(self):
         self.write({'unit_status': 'special_hold', 'is_unit_special_hold': True})
+        self._update_unit_activity('special_hold')
+
+    def _update_unit_activity(self, activity_type):
+        self.ensure_one()
+        self.env['unit.activity'].create({
+            'user_id': self.env.uid,
+            'unit_details_id': self.id,
+            'apartment_details_id': self.apartment_details_id.id,
+            'activity_type': activity_type,
+        })
 
     @api.onchange('apartment_details_id')
     def _onchange_apartment_details_id(self):

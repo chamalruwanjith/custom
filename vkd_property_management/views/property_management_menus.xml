@@ -25,10 +25,16 @@
               sequence="4"
               groups="group_property_management_manager"/>
 
+    <menuitem id="menu_report"
+              name="Reports"
+              parent="property_management_root"
+              sequence="5"
+              groups="group_property_management_manager"/>
+
     <menuitem id="menu_property_management_configuration"
               name="Configurations"
               parent="property_management_root"
-              sequence="5"
+              sequence="6"
               groups="group_property_management_manager"/>
 
     <menuitem id="menu_property_management_currency"

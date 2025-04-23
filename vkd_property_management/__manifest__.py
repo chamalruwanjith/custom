@@ -38,6 +38,7 @@
         'views/res_currency_views.xml',
         'views/product_template_views.xml',
         'views/ihm_agent_views.xml',
+        'views/unit_activity_views.xml',
         'wizards/sale_customer_select_views.xml',
     ],
 

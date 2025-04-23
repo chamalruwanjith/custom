@@ -34,17 +34,17 @@ class FloorDetails(models.Model):
                     existing_floors = self.env['floor.details'].search([
                         ('apartment_details_id', '=', self.apartment_details_id.id),
                         ('tower_details_id', '=', self.tower_details_id.id),
-                        ('floor_name', 'ilike', f'{tower_prefix}%')
+                        ('floor_name', 'ilike', f'{tower_prefix}/F%')
                     ])
                     max_number = 0
                     for floor in existing_floors:
                         try:
-                            number_part = floor.floor_name[len(tower_prefix) + 1:]
+                            number_part = floor.floor_name.split('/F')[-1]
                             max_number = max(max_number, int(number_part))
                         except ValueError:
                             pass
                     next_number = max_number + 1
-                    self.floor_name = f'{tower_prefix}-{next_number:03d}'
+                    self.floor_name = f'{tower_prefix}/F{next_number:02d}'
                 else:
                     self.floor_name = ''
             else:
@@ -52,17 +52,17 @@ class FloorDetails(models.Model):
                 if apartment_prefix:
                     existing_floors = self.env['floor.details'].search([
                         ('apartment_details_id', '=', self.apartment_details_id.id),
-                        ('floor_name', 'ilike', f'{apartment_prefix}%')
+                        ('floor_name', 'ilike', f'{apartment_prefix}/F%')
                     ])
                     max_number = 0
                     for floor in existing_floors:
                         try:
-                            number_part = floor.floor_name[len(apartment_prefix) + 1:]
+                            number_part = floor.floor_name.split('/F')[-1]
                             max_number = max(max_number, int(number_part))
                         except ValueError:
                             pass
                     next_number = max_number + 1
-                    self.floor_name = f'{apartment_prefix}-{next_number:03d}'
+                    self.floor_name = f'{apartment_prefix}/F{next_number:02d}'
                 else:
                     self.floor_name = ''
             self.is_multiple_tower_apartment = self.apartment_details_id.is_multiple_towers

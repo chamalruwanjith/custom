@@ -7,5 +7,6 @@ from . import res_currency
 from . import sale_agent
 from . import sale_order
 from . import tower_details
+from . import unit_activity
 from . import unit_details
 from . import unit_reservation

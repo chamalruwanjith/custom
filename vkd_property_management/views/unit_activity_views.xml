@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<odoo>
+
+    <record id="view_unit_activity_tree" model="ir.ui.view">
+        <field name="name">unit.activity.view.tree</field>
+        <field name="model">unit.activity</field>
+        <field name="arch" type="xml">
+            <tree string="Unit Activity" create="false">
+                <field name="activity_id"/>
+                <field name="unit_reservation_id"/>
+                <field name="user_id"/>
+                <field name="unit_details_id"/>
+                <field name="apartment_details_id" widget="badge"/>
+                <field name="activity_date"/>
+                <field name="activity_type" widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_unit_activity_search" model="ir.ui.view">
+        <field name="name">unit.activity.search</field>
+        <field name="model">unit.activity</field>
+        <field name="arch" type="xml">
+            <search string="Search Unit Activities">
+                <field name="unit_details_id"/>
+                <field name="apartment_details_id"/>
+                <field name="user_id"/>
+                <field name="unit_reservation_id"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_unit_activity" model="ir.actions.act_window">
+        <field name="name">Unit Activities</field>
+        <field name="res_model">unit.activity</field>
+        <field name="view_mode">tree</field>
+        <field name="search_view_id" ref="vkd_property_management.view_unit_activity_search"/>
+    </record>
+
+    <menuitem id="menu_unit_activity"
+              name="Unit Activity"
+              parent="menu_report"
+              action="action_unit_activity"
+              sequence="1"/>
+
+</odoo>
