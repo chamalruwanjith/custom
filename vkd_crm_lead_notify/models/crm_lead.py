@@ -42,10 +42,10 @@ class CrmLead(models.Model):
             subtype_xmlid='mail.mt_comment',
         )
 
-        template = self.env.ref('vkd_crm_lead_notify.sale_team_new_lead_email_template',
-                                raise_if_not_found=False)
+        # template = self.env.ref('vkd_crm_lead_notify.sale_team_new_lead_email_template',
+        #                        raise_if_not_found=False)
 
-        template.send_mail(lead.id, force_send=True)
+        # template.send_mail(lead.id, force_send=True)
 
         # base_url = self.env["ir.config_parameter"].sudo().get_param("web.base.url")
         # menu_id = 310  # Replace with the actual menu_id
