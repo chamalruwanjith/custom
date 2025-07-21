@@ -1,0 +1,59 @@
+<odoo>
+    <data>
+        <record id="sale_team_new_lead_email_template" model="mail.template">
+            <field name="name">New Lead Created</field>
+            <field name="model_id" ref="vkd_crm_lead_notify.model_crm_lead"/>
+            <field name="subject">New Lead Notification: ${object.name}</field>
+            <field name="body_html" type="html">
+                <div style="margin: 0px; padding: 0px; font-family: Arial, Helvetica, sans-serif;">
+                    <p style="margin: 0px; padding: 0px; font-size: 13px;">
+                        Dear<t t-esc="object.user_id.name or 'Sales Representative'"/>,
+                    </p>
+                    <br/>
+                    <p style="margin: 0px; padding: 0px; font-size: 13px;">
+                        A new lead has been created and assigned to you:
+                    </p>
+                    <br/>
+                    <div style="background-color: #f2f2f2; padding: 15px; border-radius: 5px;">
+                        <p style="margin: 0px; padding: 0px; font-size: 13px;">
+                            <strong>Lead Details:</strong>
+                            <br/>
+                            <br/>
+                            <strong>Name:</strong>
+                            <t t-esc="object.full_name or ''"/>
+                            <br/>
+                            <strong>Email:</strong>
+                            <t t-esc="object.email_from or ''"/>
+                            <br/>
+                            <strong>Phone:</strong>
+                            <t t-esc="object.phone or ''"/>
+                            <br/>
+                        </p>
+                    </div>
+                    <br/>
+                    <p style="margin: 0px; padding: 0px; font-size: 13px;">
+                        You can access the lead by clicking the button below:
+                    </p>
+                    <br/>
+                    <div>
+                        <a t-attf-href="/web?#id={{ object.id }}&amp;view_type=form&amp;model=crm.lead"
+                           style="background-color: #714B67; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                            View Task
+                        </a>
+                    </div>
+                    <br/>
+                    <br/>
+                    <p style="margin: 0px; padding: 0px; font-size: 13px;">
+                        Best regards,
+                        <br/>
+                        <t t-esc="object.company_id.name"/>
+                    </p>
+                </div>
+            </field>
+            <field name="email_to">{{object.user_id.email}}</field>
+            <field name="email_from">{{object.company_id.email}}</field>
+            <field name="lang">{{object.user_id.lang or 'en_US'}}</field>
+            <field name="auto_delete" eval="True"/>
+        </record>
+    </data>
+</odoo>
