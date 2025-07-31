@@ -11,7 +11,18 @@ class CrmLead(models.Model):
         lead = super(CrmLead, self).create(vals)
 
         base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
-        lead_url = f"{base_url}/web#id={lead.id}&model=crm.lead&view_type=form"
+
+        try:
+            crm_menu = self.env.ref('crm.crm_menu_leads', raise_if_not_found=False)
+            crm_action = self.env.ref('crm.crm_lead_action_pipeline', raise_if_not_found=False)
+
+            if crm_menu and crm_action:
+                lead_url = f"{base_url}/web?#id={lead.id}&model=crm.lead&view_type=form&cids=1&menu_id={crm_menu.id}&action={crm_action.id}"
+            else:
+                lead_url = f"{base_url}/web?#id={lead.id}&model=crm.lead&view_type=form"
+        except:
+            lead_url = f"{base_url}/web?#id={lead.id}&model=crm.lead&view_type=form"
+
         message_content = Markup(_("""<div>
             <p>New Lead Created: %s</p>
             <a href="%s" target='_blank'
@@ -42,35 +53,4 @@ class CrmLead(models.Model):
             subtype_xmlid='mail.mt_comment',
         )
 
-        # template = self.env.ref('vkd_crm_lead_notify.sale_team_new_lead_email_template',
-        #                        raise_if_not_found=False)
-
-        # template.send_mail(lead.id, force_send=True)
-
-        # base_url = self.env["ir.config_parameter"].sudo().get_param("web.base.url")
-        # menu_id = 310  # Replace with the actual menu_id
-        # action_id = 440  # Replace with the actual action_id
-        # lead_url = (f"{base_url}/web?debug=1#id={lead.id}&model=crm.lead&view_type=form"
-        #             f"&cids=1&menu_id={menu_id}&action={action_id}")
-        #
-        # # Define the message content
-        # message_content = Markup(_("""<div>
-        #     <p>New Lead Created: %s</p>
-        #     <a href="%s" target="_blank"
-        #        style="display: inline-block; padding: 10px 15px; background-color: #007BFF; color: #FFF; text-decoration: none; border-radius: 5px; font-weight: bold;">
-        #        View Lead
-        #     </a>
-        # </div>""")) % (lead.name, lead_url)
-
-        # message_content = Markup(_("""
-        #             <div style="margin: 10px 0;">
-        #                 <span style="display: block; margin-bottom: 10px;">New Lead Created</span>
-        #                 <a href="%s"
-        #                    style="display: inline-block; padding: 8px 16px; background-color: #00A09D; color: white; text-decoration: none; border-radius: 4px;"
-        #                    class="btn"
-        #                    target='_blank'>
-        #                     View Lead Details
-        #                 </a>
-        #             </div>
-        #         """)) % (lead_url)
         return lead
