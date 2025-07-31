@@ -53,4 +53,4 @@ class CrmLead(models.Model):
             subtype_xmlid='mail.mt_comment',
         )
 
-        return lead
+        # return lead
