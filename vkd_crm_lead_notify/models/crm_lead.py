@@ -35,6 +35,7 @@ class CrmLead(models.Model):
         users_to_notify = lead.user_id
 
         if not users_to_notify:
+            # If no user is assigned, send to the general lead notification channel
             channel = self.env['discuss.channel'].sudo().search([('is_lead_notification_channel', '=', True)], limit=1)
 
             if channel:
@@ -43,14 +44,13 @@ class CrmLead(models.Model):
                     message_type='comment',
                     subtype_xmlid='mail.mt_comment',
                 )
-
-        # for user in users_to_notify:
-        channel = self.env['discuss.channel'].channel_get([odoobot_id, users_to_notify.partner_id.id])
-        channel.sudo().message_post(
-            body=message_content,
-            author_id=odoobot_id,
-            message_type='comment',
-            subtype_xmlid='mail.mt_comment',
-        )
+        else:
+            channel = self.env['discuss.channel'].channel_get([odoobot_id, users_to_notify.partner_id.id])
+            channel.sudo().message_post(
+                body=message_content,
+                author_id=odoobot_id,
+                message_type='comment',
+                subtype_xmlid='mail.mt_comment',
+            )
 
         return lead
