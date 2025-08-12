@@ -11,6 +11,20 @@ export class SendWhatsAppButton extends Component {
         this.title = _t("Send WhatsApp Message");
     }
 
+    // Remove leading zeros from the phone number
+    removeLeadingZeros(phoneNumber) {
+        if (!phoneNumber) return null;
+
+        // Remove all non-digit characters
+        let sanitized = phoneNumber.replace(/\D/g, "");
+        if (!sanitized) return null;
+
+        // Remove all leading zeros
+        sanitized = sanitized.replace(/^0+/, "");
+
+        return sanitized;
+    }
+
     async onClick() {
         await this.props.record.save();
         if (this.props.record.resModel === 'crm.lead') {
@@ -21,15 +35,18 @@ export class SendWhatsAppButton extends Component {
             );
         }
         const phoneNumber = this.props.record.data[this.props.name];
-        const sanitizedPhoneNumber = phoneNumber ? phoneNumber.replace(/\D/g, '') : null;
 
-        if (sanitizedPhoneNumber) {
-            const whatsappUrl = `https://api.whatsapp.com/send?phone=${sanitizedPhoneNumber}`;
+        const formattedPhoneNumber = this.removeLeadingZeros(phoneNumber);
 
-            const newTab = window.open(whatsappUrl, '_blank');
-            if (!newTab || newTab.closed || typeof newTab.closed === 'undefined') {
+        if (formattedPhoneNumber) {
+            const whatsappUrl = `whatsapp://send?phone=${formattedPhoneNumber}`;
+            console.log(`Original: ${phoneNumber} → Formatted (zeros removed): ${formattedPhoneNumber}`);
+
+            const newTab = window.open(whatsappUrl, "_blank");
+            if (!newTab || newTab.closed || typeof newTab.closed === "undefined") {
                 window.location.href = whatsappUrl;
             }
         }
     }
 }
+
