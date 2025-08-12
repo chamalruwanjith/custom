@@ -39,7 +39,7 @@ export class SendWhatsAppButton extends Component {
         const formattedPhoneNumber = this.removeLeadingZeros(phoneNumber);
 
         if (formattedPhoneNumber) {
-            const whatsappUrl = `whatsapp://send?phone=${formattedPhoneNumber}`;
+            const whatsappUrl = `https://api.whatsapp.com/send?phone=${formattedPhoneNumber}`;
             console.log(`Original: ${phoneNumber} → Formatted (zeros removed): ${formattedPhoneNumber}`);
 
             const newTab = window.open(whatsappUrl, "_blank");
@@ -49,4 +49,5 @@ export class SendWhatsAppButton extends Component {
         }
     }
 }
+
 
