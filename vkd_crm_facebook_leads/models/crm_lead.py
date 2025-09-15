@@ -104,7 +104,7 @@ class CrmLead(models.Model):
         lead_allocate = self.env['lead.allocate'].search([
             ('from_time', '<=', lead_create_time),
             ('to_time', '>=', lead_create_time),
-        ])
+        ], limit=1, order='from_time desc')
 
         vals.update({
             'facebook_lead_id': lead['id'],
@@ -243,3 +243,4 @@ class CrmLead(models.Model):
             raise UserError(response['error']['message'])
 
         return response.get('status')
+
