@@ -10,3 +10,5 @@ from . import tower_details
 from . import unit_activity
 from . import unit_details
 from . import unit_reservation
+from . import res_partner
+from . import crm_team

@@ -158,7 +158,7 @@
         <field name="name">Hold Units</field>
         <field name="res_model">unit.reservation</field>
         <field name="view_mode">tree,form</field>
-        <field name="domain">[('reservation_status', '=', ('draft', 'hold', 'expired', 'cancel'))]</field>
+        <field name="domain">[('reservation_status', 'in', ('draft', 'hold', 'expired', 'cancel'))]</field>
     </record>
 
     <record id="action_tentatively_sold" model="ir.actions.act_window">
