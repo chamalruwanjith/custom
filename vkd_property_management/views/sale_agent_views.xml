@@ -23,7 +23,8 @@
         <field name="arch" type="xml">
             <form string="Sale Agent Details">
                 <header>
-                    <button name="action_send_agent_invitation" type="object" string="Send Invitation" class="oe_highlight"/>
+                    <button name="action_send_agent_invitation" type="object" string="Send Invitation"
+                            class="oe_highlight"/>
                 </header>
                 <sheet>
                     <group>
@@ -32,13 +33,18 @@
                         <field name="crm_team_id"/>
                         <field name="company_id"/>
                         <field name="user_id"/>
-                        <field name="secret_key" readonly="1"/>
+                        <!--                        <field name="secret_key" readonly="1"/>-->
                         <field name="email" readonly="1"/>
                         <field name="nic" readonly="1"/>
                         <field name="mobile" readonly="1"/>
                         <field name="password" invisible="1"/>
                     </group>
                 </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
             </form>
         </field>
     </record>
