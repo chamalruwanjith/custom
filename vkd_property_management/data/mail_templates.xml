@@ -24,14 +24,14 @@
                                 <strong>Agent ID:</strong>
                                 <t t-esc="object.agent_id"/>
                             </li>
-                            <li>
-                                <p style="text-align: center; margin: 30px 0;">
-                                    <a href="${ctx.get('registration_link', '')}"
-                                       style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                                        Complete Registration
-                                    </a>
-                                </p>
-                            </li>
+
+                            <p style="text-align: center; margin: 30px 0;">
+                                <a href="${ctx.get('registration_link', '')}"
+                                   style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                                    Complete Registration
+                                </a>
+                            </p>
+
                         </ul>
                     </p>
                     <p>
