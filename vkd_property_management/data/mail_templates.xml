@@ -8,11 +8,11 @@
             <field name="body_html" type="html">
                 <div>
                     <p>
-                        Dear<t t-esc="object.full_name"/>,
+                        Dear <t t-esc="object.full_name"/>,
                         <br/>
                         <br/>
                         Welcome to the system! We are excited to have you on board. Below are your credentials for
-                        create your user account in the portal:
+                        creating your user account in the portal:
                     </p>
                     <p>
                         <ul>
@@ -24,16 +24,21 @@
                                 <strong>Agent ID:</strong>
                                 <t t-esc="object.agent_id"/>
                             </li>
-
-                            <p style="text-align: center; margin: 30px 0;">
-                                <a href="${ctx.get('registration_link', '')}"
-                                   style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                                    Complete Registration
-                                </a>
-                            </p>
-
                         </ul>
                     </p>
+
+                    <p style="text-align: center; margin: 30px 0;">
+                        <a t-att-href="object.registration_link"
+                           style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                            Complete Registration
+                        </a>
+                    </p>
+
+                    <p>
+                        <strong>Note:</strong> This registration link is valid for 48 hours from
+                        <t t-esc="object.registration_link_sent_date.strftime('%Y-%m-%d %H:%M:%S') if object.registration_link_sent_date else 'now'"/>.
+                    </p>
+
                     <p>
                         Please keep this information secure. You can log in using the provided credentials.
                     </p>

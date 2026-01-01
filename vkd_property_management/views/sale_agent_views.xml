@@ -34,6 +34,10 @@
                         <field name="company_id"/>
                         <field name="user_id"/>
                         <!--                        <field name="secret_key" readonly="1"/>-->
+                        <field name="registration_token" readonly="1"/>
+                        <field name="registration_link" readonly="1"/>
+                        <field name="registration_link_sent_date" readonly="1"/>
+                        <field name="registration_token_expiry" readonly="1"/>
                         <field name="email" readonly="1"/>
                         <field name="nic" readonly="1"/>
                         <field name="mobile" readonly="1"/>
