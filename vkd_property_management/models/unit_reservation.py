@@ -200,118 +200,125 @@ class UnitReservation(models.Model):
         }
 
     def action_unit_reserve_from_agent(self):
-        """Reserve the unit and create a Sales Order Quotation."""
+        """Reserve the unit and create a Sales Order Quotation from portal."""
         self.ensure_one()
 
+        # Use sudo for all portal operations
+        sudo_self = self.sudo()
+
         _logger.info("Starting reservation process for Reservation ID: %s, Agent: %s",
-                     self.reservation_id, self.sale_agent_id.full_name)
+                     sudo_self.reservation_id, sudo_self.sale_agent_id.full_name)
 
         try:
             # Validate unit exists
-            if not self.unit_details_id:
-                error_msg = _('Unit details not found for reservation %s') % self.reservation_id
+            if not sudo_self.unit_details_id:
+                error_msg = _('Unit details not found for reservation %s') % sudo_self.reservation_id
                 _logger.error(error_msg)
                 raise UserError(error_msg)
 
-            unit = self.unit_details_id
+            unit = sudo_self.unit_details_id
             _logger.info("Processing unit: %s (Status: %s)", unit.unit_code, unit.unit_status)
 
             # Validate customer is selected
-            if not self.partner_id:
+            if not sudo_self.partner_id:
                 error_msg = _('Customer is required. Please select a customer before reserving the unit.')
-                _logger.error("Reservation %s: %s", self.reservation_id, error_msg)
+                _logger.error("Reservation %s: %s", sudo_self.reservation_id, error_msg)
                 raise UserError(error_msg)
 
-            _logger.info("Customer selected: %s (ID: %s)", self.partner_id.name, self.partner_id.id)
+            _logger.info("Customer selected: %s (ID: %s)", sudo_self.partner_id.name, sudo_self.partner_id.id)
 
             # Validate price list is selected
-            if not self.product_pricelist_id:
+            if not sudo_self.product_pricelist_id:
                 error_msg = _('Price list is required. Please select a price list before reserving the unit.')
-                _logger.error("Reservation %s: %s", self.reservation_id, error_msg)
+                _logger.error("Reservation %s: %s", sudo_self.reservation_id, error_msg)
                 raise UserError(error_msg)
 
-            _logger.info("Price list: %s (ID: %s)", self.product_pricelist_id.name, self.product_pricelist_id.id)
+            _logger.info("Price list: %s (ID: %s)", sudo_self.product_pricelist_id.name,
+                         sudo_self.product_pricelist_id.id)
 
-            # Find product for the unit
-            product = self.env['product.product'].search([('default_code', '=', unit.unit_code)], limit=1)
+            # Find product for the unit - use sudo
+            product = sudo_self.env['product.product'].search([('default_code', '=', unit.unit_code)], limit=1)
 
             if not product:
-                error_msg = _('No product found for unit %s. Please contact administrator to create the product in Inventory.') % unit.unit_code
-                _logger.error("Reservation %s: %s", self.reservation_id, error_msg)
+                error_msg = _(
+                    'No product found for unit %s. Please contact administrator to create the product in Inventory.') % unit.unit_code
+                _logger.error("Reservation %s: %s", sudo_self.reservation_id, error_msg)
                 raise UserError(error_msg)
 
             _logger.info("Product found: %s (ID: %s, Price: %s)", product.name, product.id, product.lst_price)
 
-            # Create sales order
+            # Create sales order - use sudo
             try:
                 sale_order_values = {
-                    'partner_id': self.partner_id.id,
-                    'pricelist_id': self.product_pricelist_id.id,
+                    'partner_id': sudo_self.partner_id.id,
+                    'pricelist_id': sudo_self.product_pricelist_id.id,
                     'order_line': [(0, 0, {
                         'product_id': product.id,
                         'product_uom_qty': 1,
-                        'price_unit': self.discounted_price or product.lst_price,
+                        'price_unit': sudo_self.discounted_price or product.lst_price,
                     })],
-                    'origin': self.reservation_id,
+                    'origin': sudo_self.reservation_id,
                 }
 
                 _logger.info("Creating sale order for reservation %s with values: %s",
-                            self.reservation_id, sale_order_values)
+                             sudo_self.reservation_id, sale_order_values)
 
-                sale_order = self.env['sale.order'].create(sale_order_values)
+                sale_order = sudo_self.env['sale.order'].create(sale_order_values)
                 _logger.info("Sale order created successfully: SO-%s for reservation %s",
-                            sale_order.id, self.reservation_id)
+                             sale_order.id, sudo_self.reservation_id)
 
             except Exception as e:
                 error_msg = _('Failed to create sale order: %s') % str(e)
-                _logger.error("Reservation %s: %s", self.reservation_id, error_msg, exc_info=True)
+                _logger.error("Reservation %s: %s", sudo_self.reservation_id, error_msg, exc_info=True)
                 raise UserError(error_msg)
 
-            # Update reservation status
+            # Update reservation status - use sudo
             try:
-                self.write({'reservation_status': 'reserved', 'tentatively_sold_date': fields.Date.today()})
-                _logger.info("Reservation %s status updated to 'reserved'", self.reservation_id)
+                sudo_self.write({'reservation_status': 'reserved', 'tentatively_sold_date': fields.Date.today()})
+                _logger.info("Reservation %s status updated to 'reserved'", sudo_self.reservation_id)
             except Exception as e:
-                _logger.error("Failed to update reservation %s status: %s", self.reservation_id, str(e), exc_info=True)
+                _logger.error("Failed to update reservation %s status: %s", sudo_self.reservation_id, str(e),
+                              exc_info=True)
                 raise
 
-            # Update unit status
+            # Update unit status - use sudo via helper method
             try:
-                self._update_unit_status('reserved')
+                sudo_self._update_unit_status('reserved')
                 _logger.info("Unit %s status updated to 'reserved'", unit.unit_code)
             except Exception as e:
                 _logger.error("Failed to update unit %s status: %s", unit.unit_code, str(e), exc_info=True)
                 # Continue - status update failure shouldn't break the whole process
 
-            # Create activity record
+            # Create activity record - use sudo via helper method
             try:
-                self._update_unit_activity('reserved')
+                sudo_self._update_unit_activity('reserved')
                 _logger.info("Activity record created for unit %s reservation", unit.unit_code)
             except Exception as e:
                 _logger.error("Failed to create activity record for %s: %s", unit.unit_code, str(e), exc_info=True)
                 # Continue - activity logging failure shouldn't break the whole process
 
-            # Notify team leader
+            # Notify team leader - use sudo
             try:
-                self.action_notify_sale_team_leader()
-                _logger.info("Team leader notified for reservation %s", self.reservation_id)
+                sudo_self.action_notify_sale_team_leader()
+                _logger.info("Team leader notified for reservation %s", sudo_self.reservation_id)
             except Exception as e:
                 _logger.warning("Failed to notify team leader for reservation %s: %s",
-                               self.reservation_id, str(e), exc_info=True)
+                                sudo_self.reservation_id, str(e), exc_info=True)
                 # Continue - notification failure shouldn't break the whole process
 
-            _logger.info("Reservation process completed successfully for %s", self.reservation_id)
+            _logger.info("Reservation process completed successfully for %s", sudo_self.reservation_id)
             return True
 
         except (UserError, ValidationError) as e:
             # Log and re-raise user-facing errors
-            _logger.error("Reservation %s failed with user error: %s", self.reservation_id, str(e))
+            _logger.error("Reservation %s failed with user error: %s", sudo_self.reservation_id, str(e))
             raise
         except Exception as e:
             # Catch any unexpected errors and log them
             error_msg = _('Unexpected error during reservation: %s') % str(e)
-            _logger.error("Reservation %s: %s", self.reservation_id, error_msg, exc_info=True)
+            _logger.error("Reservation %s: %s", sudo_self.reservation_id, error_msg, exc_info=True)
             raise UserError(error_msg)
+
 
     def action_set_cancel(self):
         """Cancel the reservation if there are no confirmed sale orders linked to the reserved unit."""
