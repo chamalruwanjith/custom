@@ -99,7 +99,7 @@ class UnitReservation(models.Model):
 
         # Check if unit is already on hold before creating any record
         if unit_id:
-            unit = self.env['unit.details'].browse(unit_id)
+            unit = self.env['unit.details'].sudo().browse(unit_id)
             if unit.unit_status == 'hold':
                 error_message = _('This unit is already on hold. Cannot create a reservation.')
                 raise ValidationError(error_message)
@@ -107,50 +107,59 @@ class UnitReservation(models.Model):
         if sale_agent_id and apartment_id:
             hold_limit = int(
                 self.env['ir.config_parameter'].sudo().get_param('vkd_property_management.hold_unit_limit'))
-            current_holds = self.env['unit.reservation'].search_count([
+            current_holds = self.env['unit.reservation'].sudo().search_count([
                 ('sale_agent_id', '=', sale_agent_id),
                 ('apartment_details_id', '=', apartment_id),
                 ('reservation_status', '=', 'hold')
             ])
             if current_holds >= hold_limit:
-                agent = self.env['sale.agent'].browse(sale_agent_id)
-                apartment = self.env['apartment.details'].browse(apartment_id)
+                agent = self.env['sale.agent'].sudo().browse(sale_agent_id)
+                apartment = self.env['apartment.details'].sudo().browse(apartment_id)
                 error_message = _(
                     'The agent %s has reached the hold limit of %s units for the apartment %s.'
                 ) % (agent.full_name, hold_limit, apartment.apartment_name)
                 raise ValidationError(error_message)
 
         if vals.get('reservation_id', 'New') == 'New':
-            vals['reservation_id'] = self.env['ir.sequence'].next_by_code('unit.reservation') or 'New'
-        return super(UnitReservation, self).create(vals)
+            vals['reservation_id'] = self.env['ir.sequence'].sudo().next_by_code('unit.reservation') or 'New'
+
+        # Create with sudo() to bypass access rules
+        return super(UnitReservation, self.sudo()).create(vals)
 
     @api.model
     def write_and_return(self, reservation_id, vals):
-        self.browse(reservation_id).write(vals)
+        self.sudo().browse(reservation_id).write(vals)
         return True
 
     def action_unit_hold(self):
-        hold_limit = int(self.env['ir.config_parameter'].sudo().get_param('vkd_property_management.hold_unit_limit'))
-        current_holds = self.env['unit.reservation'].search_count([
-            ('sale_agent_id', '=', self.sale_agent_id.id),
-            ('apartment_details_id', '=', self.apartment_details_id.id),
+        """Hold unit with sudo() for portal operations."""
+        # Use sudo() for all operations
+        sudo_self = self.sudo()
+
+        hold_limit = int(sudo_self.env['ir.config_parameter'].get_param('vkd_property_management.hold_unit_limit'))
+        current_holds = sudo_self.env['unit.reservation'].search_count([
+            ('sale_agent_id', '=', sudo_self.sale_agent_id.id),
+            ('apartment_details_id', '=', sudo_self.apartment_details_id.id),
             ('reservation_status', '=', 'hold')
         ])
+
         if current_holds >= hold_limit:
             error_message = _(
                 'The agent %s has reached the hold limit of %s units for the apartment %s.'
-            ) % (self.sale_agent_id.full_name, hold_limit, self.apartment_details_id.apartment_name)
+            ) % (sudo_self.sale_agent_id.full_name, hold_limit, sudo_self.apartment_details_id.apartment_name)
             raise ValidationError(error_message)
-        if self.unit_details_id.unit_status == 'hold':
+
+        if sudo_self.unit_details_id.unit_status == 'hold':
             error_message = _('This unit is already on hold.')
             raise ValidationError(error_message)
-        self.write({'reservation_status': 'hold', 'reserved_date': date.today()})
-        self._update_unit_status('hold')
-        self._update_unit_activity('hold')
 
-        template = self.env.ref('vkd_property_management.sale_agent_hold_email_template', raise_if_not_found=False)
+        sudo_self.write({'reservation_status': 'hold', 'reserved_date': date.today()})
+        sudo_self._update_unit_status('hold')
+        sudo_self._update_unit_activity('hold')
+
+        template = sudo_self.env.ref('vkd_property_management.sale_agent_hold_email_template', raise_if_not_found=False)
         if template:
-            template.send_mail(self.id, force_send=True)
+            template.send_mail(sudo_self.id, force_send=True)
 
         return True
 
@@ -446,7 +455,8 @@ class UnitReservation(models.Model):
             template.send_mail(record.id, force_send=True)
 
     def _update_unit_status(self, status):
-        if self.unit_details_id:
+        sudo_self = self.sudo()
+        if sudo_self.unit_details_id:
             status_map = {
                 'hold': 'hold',
                 'reserved': 'reserved',
@@ -456,11 +466,11 @@ class UnitReservation(models.Model):
                 'reset': 'available'
             }
             new_status = status_map.get(status, 'available')
-            self.unit_details_id.write({'unit_status': new_status})
+            sudo_self.unit_details_id.write({'unit_status': new_status})
 
     def _update_unit_activity(self, activity_type):
         self.ensure_one()
-        self.env['unit.activity'].create({
+        self.env['unit.activity'].sudo().create({
             'unit_reservation_id': self.id,
             'user_id': self.env.uid,
             'unit_details_id': self.unit_details_id.id,
