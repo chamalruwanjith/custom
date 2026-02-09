@@ -8,8 +8,36 @@
         <field name="arch" type="xml">
             <xpath expr="//sheet/group" position="before">
                 <div class="oe_button_box" name="button_box">
-                    <button name="action_update_unit_price" type="object" string="Update Prices" icon="fa-upload"/>
+                    <button name="action_update_unit_price" type="object" string="Update Prices" icon="fa-upload" invisible="is_current_company_currency"/>
+                    <button name="action_update_bulk_price" type="object" string="Update Bulk" icon="fa-upload" invisible="not is_current_company_currency"/>
                 </div>
+            </xpath>
+            <xpath expr="//notebook[@class='o_currency_rate_list']" position="replace">
+                <notebook class="o_currency_rate_list">
+                    <page string="Rates" name="rates" invisible="is_current_company_currency">
+                        <field name="rate_ids" widget="one2many">
+                            <tree string="Rates" editable="top" limit="25">
+                                <field name="name"/>
+                                <field name="company_id" groups="base.group_multi_company"/>
+                                <field name="company_rate" digits="[12,12]"/>
+                                <field name="inverse_company_rate" digits="[12,12]"/>
+                                <field name="rate" digits="[12,12]" optional="hide"/>
+                                <field name="write_date" optional="hide"/>
+                            </tree>
+                        </field>
+                    </page>
+                    <page string="Bulk Update" name="bulk_update" invisible="not is_current_company_currency">
+                        <field name="bulk_price_line_ids" widget="one2many">
+                            <tree string="Bulk Update" editable="top" limit="25">
+                                <field name="create_date"/>
+                                <field name="user_id"/>
+                                <field name="bulk_amount"/>
+                                <field name="apartment_details_ids" widget="many2many_tags"/>
+                                <field name="bulk_line_status" widget="badge"/>
+                            </tree>
+                        </field>
+                    </page>
+                </notebook>
             </xpath>
         </field>
     </record>

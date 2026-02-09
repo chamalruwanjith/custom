@@ -1,4 +1,5 @@
 from . import apartment_details
+from . import bulk_price_line
 from . import floor_details
 from . import ihm_agent
 from . import product_template
