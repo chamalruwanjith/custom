@@ -124,6 +124,16 @@
             <xpath expr="//page[@name='internal_notes']" position='attributes'>
                 <attribute name="invisible">1</attribute>
             </xpath>
+
+            <xpath expr="//div[@class='oe_title']" position='attributes'>
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//group[@name='lead_priority']/field[@name='tag_ids']" position='attributes'>
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='tag_ids']" position='attributes'>
+                <attribute name="invisible">1</attribute>
+            </xpath>
         </field>
     </record>
 

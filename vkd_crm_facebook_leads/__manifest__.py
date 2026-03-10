@@ -12,7 +12,7 @@
     'website': "https://vkdata.dk",
 
     'category': 'CRM',
-    'version': '17.0.2.0.0',
+    'version': '17.0.2.0.1',
     'license': 'OPL-1',
     'depends': ['crm', 'vkd_lead_manage'],
 

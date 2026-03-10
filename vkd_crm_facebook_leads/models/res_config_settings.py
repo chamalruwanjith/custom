@@ -15,7 +15,7 @@ class ResConfigSettings(models.TransientModel):
         auth_url = 'https://www.facebook.com/dialog/oauth?response_type=token&client_id={}&redirect_uri={}&scope={}'.format(
             self.crm_fb_app_id,
             redirect_url,
-            'leads_retrieval,pages_manage_ads,pages_read_engagement,ads_management,business_management'
+            'leads_retrieval,pages_manage_ads,pages_read_engagement,ads_management,business_management,pages_show_list'
         )
 
         res = {

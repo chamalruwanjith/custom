@@ -203,7 +203,7 @@ class CrmLead(models.Model):
 
     @api.model
     def get_facebook_leads(self):
-        fb_api = "https://graph.facebook.com/v7.0/"
+        fb_api = "https://graph.facebook.com/v19.0/"
         for form in self.env['crm.facebook.form'].search([]):
             form_status = self.get_form_status(form.facebook_form_id, form.access_token)
             if form_status != 'ACTIVE':
@@ -231,7 +231,7 @@ class CrmLead(models.Model):
         _logger.info('Fetch of leads has ended')
 
     def get_form_status(self, form_id, access_token):
-        fb_api = "https://graph.facebook.com/v7.0/"
+        fb_api = "https://graph.facebook.com/v19.0/"
         params = {
             'access_token': access_token,
             'fields': 'status'
@@ -243,4 +243,3 @@ class CrmLead(models.Model):
             raise UserError(response['error']['message'])
 
         return response.get('status')
-
