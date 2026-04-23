@@ -2,8 +2,8 @@
 
 {
     'name': "Property Management",
-    'version': '17.0.1.1.1',
-    'category': '',
+    'version': '17.0.1.2.0',
+    'category': 'Sales',
 
     'summary': """This module offers dynamic property configuration, unit reservations, real-time stock checks,
             and validations. It seamlessly integrates with Odoo’s inventory and sales systems while supporting

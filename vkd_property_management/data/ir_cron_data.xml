@@ -9,7 +9,7 @@
             <field name="state">code</field>
             <field name="code">model.check_hold_expiration()</field>
             <field name="interval_number">1</field>
-            <field name="interval_type">days</field>
+            <field name="interval_type">hours</field>
             <field name="numbercall">-1</field>
         </record>
         <record id="ir_cron_update_missing_units" model="ir.cron">

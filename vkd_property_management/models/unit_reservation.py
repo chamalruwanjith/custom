@@ -1,4 +1,4 @@
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 from markupsafe import Markup
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError, UserError
@@ -18,10 +18,13 @@ class UnitReservation(models.Model):
     unit_details_id = fields.Many2one('unit.details', string="Unit", required=True, tracking=True)
     apartment_details_id = fields.Many2one(comodel_name='apartment.details', string='Apartment', required=True)
     floor_details_id = fields.Many2one(comodel_name='floor.details', string='Floor')
-    reserved_date = fields.Date(string="Hold Date", readonly=True)
-    tentatively_sold_date = fields.Date(string="Tentatively Sold Date", readonly=True)
+
+    # Changed to Datetime
+    reserved_date = fields.Datetime(string="Hold Date", readonly=True)
+    tentatively_sold_date = fields.Datetime(string="Tentatively Sold Date", readonly=True)
     sold_date = fields.Date(string="Sold Date", readonly=True)
-    expiration_date = fields.Date(string="Expiration Date", compute="_compute_expiration_date", store=True)
+    expiration_date = fields.Datetime(string="Expiration Date", compute="_compute_expiration_date", store=True)
+
     reservation_status = fields.Selection([
         ('draft', 'Draft'),
         ('hold', 'Hold'),
@@ -153,7 +156,8 @@ class UnitReservation(models.Model):
             error_message = _('This unit is already on hold.')
             raise ValidationError(error_message)
 
-        sudo_self.write({'reservation_status': 'hold', 'reserved_date': date.today()})
+        # Updated to Datetime.now()
+        sudo_self.write({'reservation_status': 'hold', 'reserved_date': fields.Datetime.now()})
         sudo_self._update_unit_status('hold')
         sudo_self._update_unit_activity('hold')
 
@@ -185,7 +189,8 @@ class UnitReservation(models.Model):
             'pricelist_id': self.product_pricelist_id.id,
         })
 
-        self.write({'reservation_status': 'reserved', 'tentatively_sold_date': fields.Date.today()})
+        # Updated to Datetime.now()
+        self.write({'reservation_status': 'reserved', 'tentatively_sold_date': fields.Datetime.now()})
         self._update_unit_status('reserved')
         self._update_unit_activity('reserved')
 
@@ -272,9 +277,9 @@ class UnitReservation(models.Model):
                 _logger.error("Reservation %s: %s", sudo_self.reservation_id, error_msg, exc_info=True)
                 raise UserError(error_msg)
 
-            # Update reservation status - use sudo
+            # Update reservation status - use sudo - Updated to Datetime.now()
             try:
-                sudo_self.write({'reservation_status': 'reserved', 'tentatively_sold_date': fields.Date.today()})
+                sudo_self.write({'reservation_status': 'reserved', 'tentatively_sold_date': fields.Datetime.now()})
                 _logger.info("Reservation %s status updated to 'reserved'", sudo_self.reservation_id)
             except Exception as e:
                 _logger.error("Failed to update reservation %s status: %s", sudo_self.reservation_id, str(e),
@@ -318,7 +323,6 @@ class UnitReservation(models.Model):
             error_msg = _('Unexpected error during reservation: %s') % str(e)
             _logger.error("Reservation %s: %s", sudo_self.reservation_id, error_msg, exc_info=True)
             raise UserError(error_msg)
-
 
     def action_set_cancel(self):
         """Cancel the reservation if there are no confirmed sale orders linked to the reserved unit."""
@@ -375,7 +379,7 @@ class UnitReservation(models.Model):
             # Validate agent has a CRM team
             if not record.sale_agent_id.crm_team_id:
                 _logger.warning("Reservation %s: Agent %s has no CRM team assigned. Skipping notification.",
-                               record.reservation_id, record.sale_agent_id.full_name)
+                                record.reservation_id, record.sale_agent_id.full_name)
                 # Don't raise error - just log and continue
                 return
 
@@ -383,7 +387,7 @@ class UnitReservation(models.Model):
 
             if not team_leader:
                 _logger.warning("Reservation %s: CRM team '%s' has no team leader assigned. Skipping notification.",
-                               record.reservation_id, record.sale_agent_id.crm_team_id.name)
+                                record.reservation_id, record.sale_agent_id.crm_team_id.name)
                 # Don't raise error - just log and continue
                 return
 
@@ -401,8 +405,9 @@ class UnitReservation(models.Model):
                 )
             except Exception as e:
                 _logger.error("Failed to format notification message for %s: %s",
-                             record.reservation_id, str(e), exc_info=True)
-                notification_message = Markup(_("<p>New reservation submitted by %s</p>") % record.sale_agent_id.full_name)
+                              record.reservation_id, str(e), exc_info=True)
+                notification_message = Markup(
+                    _("<p>New reservation submitted by %s</p>") % record.sale_agent_id.full_name)
 
             # Send Discuss channel notification
             try:
@@ -417,19 +422,19 @@ class UnitReservation(models.Model):
                             subtype_xmlid='mail.mt_comment',
                         )
                         _logger.info("Discuss channel message sent to team leader for reservation %s",
-                                    record.reservation_id)
+                                     record.reservation_id)
                     else:
                         _logger.warning("Odoobot reference not found. Skipping Discuss notification.")
             except Exception as e:
                 _logger.warning("Failed to send Discuss channel notification for %s: %s",
-                               record.reservation_id, str(e), exc_info=True)
+                                record.reservation_id, str(e), exc_info=True)
                 # Continue - channel notification failure shouldn't stop email
 
             # Send email notification
             try:
                 if not team_leader.login:
                     _logger.warning("Reservation %s: Team leader %s has no email/login configured. Skipping email.",
-                                   record.reservation_id, team_leader.name)
+                                    record.reservation_id, team_leader.name)
                     return
 
                 template = self.env.ref('vkd_property_management.team_leader_notification_email_template',
@@ -443,7 +448,7 @@ class UnitReservation(models.Model):
 
             except Exception as e:
                 _logger.error("Failed to send email notification for reservation %s: %s",
-                             record.reservation_id, str(e), exc_info=True)
+                              record.reservation_id, str(e), exc_info=True)
                 # Don't raise - notification failure shouldn't break the reservation process
 
     def action_notify_sale_agent(self):
@@ -485,21 +490,24 @@ class UnitReservation(models.Model):
             'activity_type': activity_type,
         })
 
+    # Updated logic to handle Datetime objects directly
     @api.depends('reserved_date')
     def _compute_expiration_date(self):
         for record in self:
             if record.reserved_date:
                 hold_expiration_days = int(
                     self.env['ir.config_parameter'].sudo().get_param('vkd_property_management.hold_expiration_days'))
-                expiration_date = fields.Date.from_string(record.reserved_date) + timedelta(days=hold_expiration_days)
-                record.expiration_date = fields.Date.to_string(expiration_date)
+                record.expiration_date = record.reserved_date + timedelta(days=hold_expiration_days)
             else:
                 record.expiration_date = False
 
+    # Updated cron job logic for precise Datetime comparisons
     @api.model
     def check_hold_expiration(self):
         """Check if any holds have expired and notify relevant sales agents."""
-        today = date.today()
+        now = fields.Datetime.now()
+        today_date = now.date()
+
         reservations = self.search([('reservation_status', '=', 'hold')])
         template_reminder = self.env.ref(
             'vkd_property_management.sale_agent_hold_reminder_template',
@@ -511,14 +519,16 @@ class UnitReservation(models.Model):
         )
 
         for reservation in reservations:
-            expiration_date = fields.Date.from_string(reservation.expiration_date)
-            if expiration_date:
+            if reservation.expiration_date:
+                expiration_datetime = reservation.expiration_date
+                expiration_date = expiration_datetime.date()
+
                 # If the hold expires tomorrow, send a reminder email.
-                if expiration_date == today + timedelta(days=1) and template_reminder:
+                if expiration_date == today_date + timedelta(days=1) and template_reminder:
                     template_reminder.send_mail(reservation.id, force_send=True)
 
-                # If the hold has expired, update status and notify agents.
-                elif expiration_date < today:
+                # If the hold has expired precisely past the time of creation + offset days.
+                elif expiration_datetime < now:
                     reservation.write({'reservation_status': 'expired'})
                     reservation._update_unit_status('available')
                     reservation._update_unit_activity('expired')
