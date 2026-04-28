@@ -148,9 +148,15 @@ class CrmLead(models.Model):
                 related_value = self.env[odoo_field_id.relation].search([('display_name', '=', value)])
                 vals.update({odoo_field_id.name: related_value.id if related_value else None})
             elif odoo_field_id.ttype in ('float', 'monetary'):
-                vals.update({odoo_field_id.name: float(value)})
+                try:
+                    vals.update({odoo_field_id.name: float(value)})
+                except (ValueError, TypeError):
+                    _logger.warning('Cannot convert "%s" to float for field %s, storing in notes only', value, odoo_field_id.name)
             elif odoo_field_id.ttype == 'integer':
-                vals.update({odoo_field_id.name: int(value)})
+                try:
+                    vals.update({odoo_field_id.name: int(value)})
+                except (ValueError, TypeError):
+                    _logger.warning('Cannot convert "%s" to int for field %s, storing in notes only', value, odoo_field_id.name)
             elif odoo_field_id.ttype in ('date', 'datetime'):
                 vals.update({odoo_field_id.name: value.split('+')[0].replace('T', ' ')})
             elif odoo_field_id.ttype == 'selection':
