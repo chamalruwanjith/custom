@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_unit_price_history_tree" model="ir.ui.view">
+        <field name="name">unit.price.history.view.tree</field>
+        <field name="model">unit.price.history</field>
+        <field name="arch" type="xml">
+            <tree string="Price History" create="false" edit="false" delete="false">
+                <field name="unit_details_id"/>
+                <field name="price_type"/>
+                <field name="old_price" widget="monetary"/>
+                <field name="new_price" widget="monetary"/>
+                <field name="user_id" widget="many2one_avatar"/>
+                <field name="change_date"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_unit_price_history_search" model="ir.ui.view">
+        <field name="name">unit.price.history.search</field>
+        <field name="model">unit.price.history</field>
+        <field name="arch" type="xml">
+            <search string="Search Price History">
+                <field name="unit_details_id"/>
+                <field name="user_id"/>
+                <field name="price_type"/>
+                <separator/>
+                <filter string="Today" name="today" domain="[('change_date', '&gt;=', context_today().strftime('%Y-%m-%d'))]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Unit" name="group_by_unit" context="{'group_by':'unit_details_id'}"/>
+                    <filter string="User" name="group_by_user" context="{'group_by':'user_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_unit_price_history" model="ir.actions.act_window">
+        <field name="name">Price Change History</field>
+        <field name="res_model">unit.price.history</field>
+        <field name="view_mode">tree</field>
+        <field name="search_view_id" ref="view_unit_price_history_search"/>
+    </record>
+
+    <menuitem id="menu_unit_price_history"
+              name="Price History"
+              parent="menu_report"
+              action="action_unit_price_history"
+              sequence="2"/>
+</odoo>

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 
@@ -6,6 +7,7 @@ class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
     def action_confirm(self):
+        """Confirm sale order and update unit status to 'sold', complete reservations, and validate unit availability."""
         result = super(SaleOrder, self).action_confirm()
 
         allowed_statuses = ['available', 'hold', 'special_hold', 'reserved']

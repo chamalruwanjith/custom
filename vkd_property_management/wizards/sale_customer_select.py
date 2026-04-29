@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from odoo import api, fields, models, exceptions, _
 
 
@@ -18,7 +19,6 @@ class SaleCustomerSelect(models.TransientModel):
         if not product:
             raise exceptions.UserError(_('No product found for this unit. Please ensure the product is created.'))
 
-        # Create the Sale Order with the selected customer
         sale_order = self.env['sale.order'].create({
             'partner_id': self.partner_id.id,
             'order_line': [(0, 0, {
@@ -30,7 +30,6 @@ class SaleCustomerSelect(models.TransientModel):
 
         unit.write({'unit_status': 'reserved'})
 
-        # Return an action to open the Sale Order form view
         return {
             'name': _('Sale Order'),
             'type': 'ir.actions.act_window',

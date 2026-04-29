@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from odoo import api, fields, models, _
 
 
@@ -34,6 +35,7 @@ class ApartmentDetails(models.Model):
 
     @api.depends('unit_details_ids.unit_status')
     def _compute_is_active(self):
+        """Set is_active as True if at least one associated unit has 'available' status."""
         for record in self:
             units = self.env['unit.details'].search([('apartment_details_id', '=', record.id)])
             if any(unit.unit_status == 'available' for unit in units):
@@ -49,6 +51,6 @@ class ApartmentDetails(models.Model):
             'name': _('Floor Details'),
             'view_mode': 'form',
             'res_model': 'floor.details',
-            'res_id': self.floor_details_ids.id,  # Assuming you want to open the first floor by default
+            'res_id': self.floor_details_ids.id,
             'target': 'new',
         }

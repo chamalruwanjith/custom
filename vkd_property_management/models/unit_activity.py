@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from odoo import api, fields, models, _
 
 
@@ -25,6 +26,7 @@ class UnitActivity(models.Model):
 
     @api.model
     def create(self, vals):
+        """Auto-generate sequential 5-digit activity ID if not provided."""
         if 'activity_id' not in vals or not vals['activity_id']:
             last_activity = self.search([], order='id desc', limit=1)
             if last_activity and last_activity.activity_id:

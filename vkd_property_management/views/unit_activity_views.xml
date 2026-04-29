@@ -19,7 +19,7 @@
     </record>
 
     <record id="view_unit_activity_search" model="ir.ui.view">
-        <field name="name">unit.activity.search</field>
+        <field name="name">unit.activity.view.search</field>
         <field name="model">unit.activity</field>
         <field name="arch" type="xml">
             <search string="Search Unit Activities">

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
@@ -9,6 +10,7 @@ class ResCurrency(models.Model):
                                           string="Bulk Price Lines")
 
     def action_update_bulk_price(self):
+        """Apply bulk price increase to all draft/available units in selected apartments using the latest draft bulk price line."""
         UnitDetails = self.env['unit.details']
         BulkPriceLine = self.env['bulk.price.line']
 

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from odoo import api, fields, models, _
 
 
@@ -23,10 +24,8 @@ class TowerDetails(models.Model):
 
     @api.onchange('apartment_details_id', 'tower_name')
     def _onchange_generate_tower_prefix(self):
-        """
-        Automatically generate the tower prefix based on the selected apartment prefix and tower name.
-        """
+        """Automatically generate the tower prefix based on the selected apartment prefix and tower name."""
         if self.apartment_details_id and self.tower_name:
-            self.tower_prefix = f"{self.apartment_details_id.apartment_prefix}{self.tower_name.upper()}"
+            self.tower_prefix = f"{self.apartment_details_id.apartment_prefix}/{self.tower_name.upper()}"
         else:
             self.tower_prefix = False

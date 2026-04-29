@@ -1,4 +1,5 @@
-from datetime import timedelta, date, datetime
+# -*- coding: utf-8 -*-
+from datetime import timedelta
 from markupsafe import Markup
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError, UserError
@@ -18,13 +19,10 @@ class UnitReservation(models.Model):
     unit_details_id = fields.Many2one('unit.details', string="Unit", required=True, tracking=True)
     apartment_details_id = fields.Many2one(comodel_name='apartment.details', string='Apartment', required=True)
     floor_details_id = fields.Many2one(comodel_name='floor.details', string='Floor')
-
-    # Changed to Datetime
     reserved_date = fields.Datetime(string="Hold Date", readonly=True)
     tentatively_sold_date = fields.Datetime(string="Tentatively Sold Date", readonly=True)
     sold_date = fields.Date(string="Sold Date", readonly=True)
     expiration_date = fields.Datetime(string="Expiration Date", compute="_compute_expiration_date", store=True)
-
     reservation_status = fields.Selection([
         ('draft', 'Draft'),
         ('hold', 'Hold'),
@@ -96,11 +94,11 @@ class UnitReservation(models.Model):
 
     @api.model
     def create(self, vals):
+        """Create reservation with hold limit validation and auto-generated sequence number."""
         sale_agent_id = vals.get('sale_agent_id')
         apartment_id = vals.get('apartment_details_id')
         unit_id = vals.get('unit_details_id')
 
-        # Check if unit is already on hold before creating any record
         if unit_id:
             unit = self.env['unit.details'].sudo().browse(unit_id)
             if unit.unit_status == 'hold':
@@ -126,17 +124,16 @@ class UnitReservation(models.Model):
         if vals.get('reservation_id', 'New') == 'New':
             vals['reservation_id'] = self.env['ir.sequence'].sudo().next_by_code('unit.reservation') or 'New'
 
-        # Create with sudo() to bypass access rules
         return super(UnitReservation, self.sudo()).create(vals)
 
     @api.model
     def write_and_return(self, reservation_id, vals):
+        """Write values to a reservation and return True (utility method for portal operations)."""
         self.sudo().browse(reservation_id).write(vals)
         return True
 
     def action_unit_hold(self):
-        """Hold unit with sudo() for portal operations."""
-        # Use sudo() for all operations
+        """Place unit on hold with agent limit validation and send hold confirmation email."""
         sudo_self = self.sudo()
 
         hold_limit = int(sudo_self.env['ir.config_parameter'].get_param('vkd_property_management.hold_unit_limit'))
@@ -156,7 +153,6 @@ class UnitReservation(models.Model):
             error_message = _('This unit is already on hold.')
             raise ValidationError(error_message)
 
-        # Updated to Datetime.now()
         sudo_self.write({'reservation_status': 'hold', 'reserved_date': fields.Datetime.now()})
         sudo_self._update_unit_status('hold')
         sudo_self._update_unit_activity('hold')
@@ -189,7 +185,6 @@ class UnitReservation(models.Model):
             'pricelist_id': self.product_pricelist_id.id,
         })
 
-        # Updated to Datetime.now()
         self.write({'reservation_status': 'reserved', 'tentatively_sold_date': fields.Datetime.now()})
         self._update_unit_status('reserved')
         self._update_unit_activity('reserved')
@@ -208,14 +203,12 @@ class UnitReservation(models.Model):
         """Reserve the unit and create a Sales Order Quotation from portal."""
         self.ensure_one()
 
-        # Use sudo for all portal operations
         sudo_self = self.sudo()
 
         _logger.info("Starting reservation process for Reservation ID: %s, Agent: %s",
                      sudo_self.reservation_id, sudo_self.sale_agent_id.full_name)
 
         try:
-            # Validate unit exists
             if not sudo_self.unit_details_id:
                 error_msg = _('Unit details not found for reservation %s') % sudo_self.reservation_id
                 _logger.error(error_msg)
@@ -224,7 +217,6 @@ class UnitReservation(models.Model):
             unit = sudo_self.unit_details_id
             _logger.info("Processing unit: %s (Status: %s)", unit.unit_code, unit.unit_status)
 
-            # Validate customer is selected
             if not sudo_self.partner_id:
                 error_msg = _('Customer is required. Please select a customer before reserving the unit.')
                 _logger.error("Reservation %s: %s", sudo_self.reservation_id, error_msg)
@@ -232,7 +224,6 @@ class UnitReservation(models.Model):
 
             _logger.info("Customer selected: %s (ID: %s)", sudo_self.partner_id.name, sudo_self.partner_id.id)
 
-            # Validate price list is selected
             if not sudo_self.product_pricelist_id:
                 error_msg = _('Price list is required. Please select a price list before reserving the unit.')
                 _logger.error("Reservation %s: %s", sudo_self.reservation_id, error_msg)
@@ -241,7 +232,6 @@ class UnitReservation(models.Model):
             _logger.info("Price list: %s (ID: %s)", sudo_self.product_pricelist_id.name,
                          sudo_self.product_pricelist_id.id)
 
-            # Find product for the unit - use sudo
             product = sudo_self.env['product.product'].search([('default_code', '=', unit.unit_code)], limit=1)
 
             if not product:
@@ -252,7 +242,6 @@ class UnitReservation(models.Model):
 
             _logger.info("Product found: %s (ID: %s, Price: %s)", product.name, product.id, product.lst_price)
 
-            # Create sales order - use sudo
             try:
                 sale_order_values = {
                     'partner_id': sudo_self.partner_id.id,
@@ -277,7 +266,6 @@ class UnitReservation(models.Model):
                 _logger.error("Reservation %s: %s", sudo_self.reservation_id, error_msg, exc_info=True)
                 raise UserError(error_msg)
 
-            # Update reservation status - use sudo - Updated to Datetime.now()
             try:
                 sudo_self.write({'reservation_status': 'reserved', 'tentatively_sold_date': fields.Datetime.now()})
                 _logger.info("Reservation %s status updated to 'reserved'", sudo_self.reservation_id)
@@ -286,40 +274,32 @@ class UnitReservation(models.Model):
                               exc_info=True)
                 raise
 
-            # Update unit status - use sudo via helper method
             try:
                 sudo_self._update_unit_status('reserved')
                 _logger.info("Unit %s status updated to 'reserved'", unit.unit_code)
             except Exception as e:
                 _logger.error("Failed to update unit %s status: %s", unit.unit_code, str(e), exc_info=True)
-                # Continue - status update failure shouldn't break the whole process
 
-            # Create activity record - use sudo via helper method
             try:
                 sudo_self._update_unit_activity('reserved')
                 _logger.info("Activity record created for unit %s reservation", unit.unit_code)
             except Exception as e:
                 _logger.error("Failed to create activity record for %s: %s", unit.unit_code, str(e), exc_info=True)
-                # Continue - activity logging failure shouldn't break the whole process
 
-            # Notify team leader - use sudo
             try:
                 sudo_self.action_notify_sale_team_leader()
                 _logger.info("Team leader notified for reservation %s", sudo_self.reservation_id)
             except Exception as e:
                 _logger.warning("Failed to notify team leader for reservation %s: %s",
                                 sudo_self.reservation_id, str(e), exc_info=True)
-                # Continue - notification failure shouldn't break the whole process
 
             _logger.info("Reservation process completed successfully for %s", sudo_self.reservation_id)
             return True
 
         except (UserError, ValidationError) as e:
-            # Log and re-raise user-facing errors
             _logger.error("Reservation %s failed with user error: %s", sudo_self.reservation_id, str(e))
             raise
         except Exception as e:
-            # Catch any unexpected errors and log them
             error_msg = _('Unexpected error during reservation: %s') % str(e)
             _logger.error("Reservation %s: %s", sudo_self.reservation_id, error_msg, exc_info=True)
             raise UserError(error_msg)
@@ -353,11 +333,12 @@ class UnitReservation(models.Model):
                 reservation._update_unit_activity('cancel')
 
     def action_set_reset(self):
+        """Reset reservation status to draft and set unit status to available."""
         self.write({'reservation_status': 'draft'})
         self._update_unit_status('available')
 
     def action_open_sale_orders(self):
-        """Open related sale orders in a tree view."""
+        """Open all sale orders linked to this reservation."""
         self.ensure_one()
         action = self.env.ref('sale.action_orders').read()[0]
         action.update({
@@ -368,19 +349,13 @@ class UnitReservation(models.Model):
         return action
 
     def action_notify_sale_team_leader(self):
-        """Notify the team leader about the sales submission.
-
-        Includes comprehensive error handling to prevent portal crashes
-        while ensuring team leaders are notified when possible.
-        """
+        """Send Discuss channel and email notifications to team leader about new reservation."""
         for record in self:
             _logger.info("Attempting to notify team leader for reservation %s", record.reservation_id)
 
-            # Validate agent has a CRM team
             if not record.sale_agent_id.crm_team_id:
                 _logger.warning("Reservation %s: Agent %s has no CRM team assigned. Skipping notification.",
                                 record.reservation_id, record.sale_agent_id.full_name)
-                # Don't raise error - just log and continue
                 return
 
             team_leader = record.sale_agent_id.crm_team_id.user_id
@@ -388,12 +363,10 @@ class UnitReservation(models.Model):
             if not team_leader:
                 _logger.warning("Reservation %s: CRM team '%s' has no team leader assigned. Skipping notification.",
                                 record.reservation_id, record.sale_agent_id.crm_team_id.name)
-                # Don't raise error - just log and continue
                 return
 
             _logger.info("Team leader found: %s (ID: %s)", team_leader.name, team_leader.id)
 
-            # Prepare notification message with proper formatting
             try:
                 notification_message = Markup(_("""
                                 <p><strong>Sales Submission Alert</strong></p>
@@ -409,7 +382,6 @@ class UnitReservation(models.Model):
                 notification_message = Markup(
                     _("<p>New reservation submitted by %s</p>") % record.sale_agent_id.full_name)
 
-            # Send Discuss channel notification
             try:
                 if team_leader.partner_id:
                     odoobot_id = self.env.ref("base.partner_root", raise_if_not_found=False)
@@ -428,9 +400,7 @@ class UnitReservation(models.Model):
             except Exception as e:
                 _logger.warning("Failed to send Discuss channel notification for %s: %s",
                                 record.reservation_id, str(e), exc_info=True)
-                # Continue - channel notification failure shouldn't stop email
 
-            # Send email notification
             try:
                 if not team_leader.login:
                     _logger.warning("Reservation %s: Team leader %s has no email/login configured. Skipping email.",
@@ -449,7 +419,6 @@ class UnitReservation(models.Model):
             except Exception as e:
                 _logger.error("Failed to send email notification for reservation %s: %s",
                               record.reservation_id, str(e), exc_info=True)
-                # Don't raise - notification failure shouldn't break the reservation process
 
     def action_notify_sale_agent(self):
         """Notify the sale agent that their Tentatively Sold request is confirmed by the team leader."""
@@ -467,6 +436,7 @@ class UnitReservation(models.Model):
             template.send_mail(record.id, force_send=True)
 
     def _update_unit_status(self, status):
+        """Update the linked unit's status based on reservation status change."""
         sudo_self = self.sudo()
         if sudo_self.unit_details_id:
             status_map = {
@@ -481,6 +451,7 @@ class UnitReservation(models.Model):
             sudo_self.unit_details_id.write({'unit_status': new_status})
 
     def _update_unit_activity(self, activity_type):
+        """Create activity log entry for unit status change."""
         self.ensure_one()
         self.env['unit.activity'].sudo().create({
             'unit_reservation_id': self.id,
@@ -490,9 +461,9 @@ class UnitReservation(models.Model):
             'activity_type': activity_type,
         })
 
-    # Updated logic to handle Datetime objects directly
     @api.depends('reserved_date')
     def _compute_expiration_date(self):
+        """Calculate hold expiration date based on system configuration days."""
         for record in self:
             if record.reserved_date:
                 hold_expiration_days = int(
@@ -501,7 +472,6 @@ class UnitReservation(models.Model):
             else:
                 record.expiration_date = False
 
-    # Updated cron job logic for precise Datetime comparisons
     @api.model
     def check_hold_expiration(self):
         """Check if any holds have expired and notify relevant sales agents."""
@@ -523,11 +493,9 @@ class UnitReservation(models.Model):
                 expiration_datetime = reservation.expiration_date
                 expiration_date = expiration_datetime.date()
 
-                # If the hold expires tomorrow, send a reminder email.
                 if expiration_date == today_date + timedelta(days=1) and template_reminder:
                     template_reminder.send_mail(reservation.id, force_send=True)
 
-                # If the hold has expired precisely past the time of creation + offset days.
                 elif expiration_datetime < now:
                     reservation.write({'reservation_status': 'expired'})
                     reservation._update_unit_status('available')

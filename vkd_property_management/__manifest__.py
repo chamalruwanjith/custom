@@ -2,7 +2,7 @@
 
 {
     'name': "Property Management",
-    'version': '17.0.1.2.0',
+    'version': '17.0.1.3.0',
     'category': 'Sales',
 
     'summary': """This module offers dynamic property configuration, unit reservations, real-time stock checks,
@@ -40,6 +40,7 @@
         'views/ihm_agent_views.xml',
         'views/unit_activity_views.xml',
         'views/crm_teams_views.xml',
+        'views/unit_price_history_views.xml',
         'wizards/sale_customer_select_views.xml',
     ],
 

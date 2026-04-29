@@ -108,28 +108,23 @@
                               invisible="is_property_user == True and (is_unit_sold == True or is_unit_special_hold == True)">
                             <group>
                                 <group>
-                                    <field name="unit_price" readonly="unit_status != 'draft'"/>
-                                    <field name="unit_price_aud" readonly="unit_status != 'draft'"/>
-                                    <field name="unit_price_usd" readonly="unit_status != 'draft'"/>
+                                    <field name="unit_price" readonly="unit_status != 'draft'" invisible="unit_type != 'unit'"/>
+                                    <field name="unit_price_aud" readonly="unit_status != 'draft'" invisible="unit_type != 'unit'"/>
+                                    <field name="unit_price_usd" readonly="unit_status != 'draft'" invisible="unit_type != 'unit'"/>
                                 </group>
                             </group>
+                            <field name="multiple_price_ids" invisible="unit_type != 'villa'">
+                                <tree editable="bottom">
+                                    <field name="multiple_price_type_id" required="True"/>
+                                    <field name="unit_price"/>
+                                    <field name="unit_price_aud" readonly="1" force_save="1"/>
+                                    <field name="unit_price_usd" readonly="1" force_save="1"/>
+                                </tree>
+                            </field>
                         </page>
-                        <page string="Address">
+                        <page string="Special Notes">
                             <group>
-                                <group>
-                                    <label for="address_line_1" string="Unit Address"
-                                           readonly="unit_status != 'draft'"/>
-                                    <div class="o_address_format">
-                                        <field name="address_line_1" placeholder="Street..." class="o_address_street"
-                                               readonly="unit_status != 'draft'"/>
-                                        <field name="address_line_2" placeholder="Street 2..."
-                                               class="o_address_street" readonly="unit_status != 'draft'"/>
-                                        <field name="city" placeholder="City" class="o_address_city"
-                                               readonly="unit_status != 'draft'"/>
-                                        <field name="zip_code" placeholder="ZIP" class="o_address_zip"
-                                               readonly="unit_status != 'draft'"/>
-                                    </div>
-                                </group>
+                                <field colspan="2" name="special_note" nolabel="1" placeholder="Special Notes..."/>
                             </group>
                         </page>
                         <page string="Images">

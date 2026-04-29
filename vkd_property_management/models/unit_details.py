@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from odoo import api, fields, models, _, exceptions
 from odoo.exceptions import UserError, ValidationError
 
@@ -40,10 +41,7 @@ class UnitDetails(models.Model):
         ('west_northwest', 'West-Northwest'),
         ('north_northwest', 'North-Northwest'),
     ], string="Facing Direction")
-    address_line_1 = fields.Char(string='Address Line 1')
-    address_line_2 = fields.Char(string='Address Line 2')
-    city = fields.Char(string='City')
-    zip_code = fields.Char(string='Zip Code')
+    special_note = fields.Html(string="Special Notes")
     unit_status = fields.Selection([
         ('draft', 'Draft'),
         ('available', 'Available'),
@@ -70,6 +68,112 @@ class UnitDetails(models.Model):
     is_unit_sold = fields.Boolean(string='Unit Sold', default=False)
     is_unit_special_hold = fields.Boolean(string='Unit Special Hold', default=False)
     is_property_user = fields.Boolean(string='Property User', default=True, compute='_compute_property_user')
+    multiple_price_ids = fields.One2many(comodel_name='unit.multiple.price', inverse_name='unit_details_id',
+                                         string='Multiple Prices')
+
+    @api.model
+    def create(self, vals):
+        """Creates a related product, calculates currencies, and logs initial price history."""
+        vals['company_id'] = self.env.company.id
+
+        record = super(UnitDetails, self).create(vals)
+
+        if record.unit_price > 0:
+            record._update_currency_prices()
+
+        if record.unit_price > 0:
+            self.env['unit.price.history'].create({
+                'unit_details_id': record.id,
+                'price_type': 'Base Price',
+                'old_price': 0.0,
+                'new_price': record.unit_price,
+            })
+
+        product_template = self.env['product.template']
+        existing_product = product_template.search([('default_code', '=', record.unit_code)], limit=1)
+
+        if not existing_product:
+            product_vals = {
+                'name': record.unit_code,
+                'default_code': record.unit_code,
+                'type': 'product',
+                'list_price': record.unit_price,
+                'unit_price_aud': record.unit_price_aud,
+                'unit_price_usd': record.unit_price_usd,
+                'categ_id': self.env.ref('product.product_category_all').id,
+                'company_id': record.company_id.id,
+            }
+            new_product = product_template.create(product_vals)
+
+            warehouse = self.env['stock.warehouse'].search(
+                [('company_id', '=', record.company_id.id)], limit=1
+            )
+            if warehouse:
+                self.env['stock.quant'].with_context(inventory_mode=True).create({
+                    'product_id': new_product.product_variant_id.id,
+                    'location_id': warehouse.lot_stock_id.id,
+                    'inventory_quantity': 1.0,
+                })._apply_inventory()
+
+        return record
+
+    def write(self, vals):
+        """Updates unit, logs price history, calculates currencies, and updates related products."""
+        tracked_fields = ['unit_price', 'unit_price_aud', 'unit_price_usd', 'unit_status']
+        if any(field in vals for field in tracked_fields):
+            clean_context = dict(self.env.context)
+            clean_context.pop('tracking_disable', None)
+            clean_context.pop('mail_notrack', None)
+            self = self.with_context(clean_context)
+
+        if 'unit_price' in vals:
+            for unit in self:
+                if unit.unit_price != vals.get('unit_price'):
+                    self.env['unit.price.history'].create({
+                        'unit_details_id': unit.id,
+                        'price_type': 'Base Price',
+                        'old_price': unit.unit_price,
+                        'new_price': vals.get('unit_price'),
+                    })
+
+        res = super(UnitDetails, self).write(vals)
+
+        if 'unit_price' in vals:
+            self._update_currency_prices()
+
+        product_template = self.env['product.template']
+        for unit in self:
+            product = product_template.search([('default_code', '=', unit.unit_code)], limit=1)
+            if product:
+                product.write({
+                    'list_price': unit.unit_price,
+                    'unit_price_aud': unit.unit_price_aud,
+                    'unit_price_usd': unit.unit_price_usd,
+                    'company_id': unit.company_id.id,
+                })
+
+        return res
+
+    def _update_currency_prices(self):
+        """Fetches the latest rates and updates the AUD and USD prices on the unit."""
+        aud_currency = self.env['res.currency'].search([('name', '=', 'AUD')], limit=1)
+        usd_currency = self.env['res.currency'].search([('name', '=', 'USD')], limit=1)
+
+        for unit in self:
+            if not unit.unit_price:
+                unit.unit_price_aud = 0.0
+                unit.unit_price_usd = 0.0
+                continue
+
+            aud_rate = aud_currency.rate_ids.filtered(lambda r: r.company_id == unit.company_id).sorted('name',
+                                                                                                        reverse=True)[
+                       :1].company_rate if aud_currency else 0.0
+            usd_rate = usd_currency.rate_ids.filtered(lambda r: r.company_id == unit.company_id).sorted('name',
+                                                                                                        reverse=True)[
+                       :1].company_rate if usd_currency else 0.0
+
+            unit.unit_price_aud = unit.unit_price * aud_rate
+            unit.unit_price_usd = unit.unit_price * usd_rate
 
     def _compute_property_user(self):
         """Set is_property_user based on the current user's group."""
@@ -84,6 +188,7 @@ class UnitDetails(models.Model):
 
     @api.constrains('unit_name', 'floor_details_id')
     def _check_unit_name_uniqueness(self):
+        """Ensure unit name is unique within the same floor."""
         for record in self:
             duplicate = self.search([
                 ('unit_name', '=', record.unit_name),
@@ -114,50 +219,6 @@ class UnitDetails(models.Model):
                     record.unit_code = unit_suffix
 
     @api.model
-    def create(self, vals):
-        """Creates a related product for the unit if it doesn't exist."""
-        vals['company_id'] = self.env.company.id
-        record = super(UnitDetails, self).create(vals)
-        product_template = self.env['product.template']
-        existing_product = product_template.search([('default_code', '=', record.unit_code)], limit=1)
-        if not existing_product:
-            product_vals = {
-                'name': record.unit_code,
-                'default_code': record.unit_code,
-                'type': 'product',
-                'list_price': record.unit_price,
-                'categ_id': self.env.ref('product.product_category_all').id,
-                'company_id': record.company_id.id,
-            }
-            new_product = product_template.create(product_vals)
-
-            warehouse = self.env['stock.warehouse'].search(
-                [('company_id', '=', record.company_id.id)], limit=1
-            )
-            self.env['stock.quant'].with_context(inventory_mode=True).create({
-                'product_id': new_product.product_variant_id.id,
-                'location_id': warehouse.lot_stock_id.id,
-                'inventory_quantity': 1.0,
-            })._apply_inventory()
-
-        return record
-
-    def write(self, vals):
-        """Updates the related product when unit details are updated."""
-        res = super(UnitDetails, self).write(vals)
-        product_template = self.env['product.template']
-
-        for unit in self:
-            product = product_template.search([('default_code', '=', unit.unit_code)], limit=1)
-            if product:
-                product.write({
-                    'list_price': unit.unit_price,
-                    'company_id': unit.company_id.id,
-                })
-
-        return res
-
-    @api.model
     def _update_missing_units(self):
         """Creates or updates products for all units."""
         units = self.search([])
@@ -183,9 +244,11 @@ class UnitDetails(models.Model):
                 })
 
     def action_set_available(self):
+        """Mark unit as available for sale and clear special hold flag."""
         self.write({'unit_status': 'available', 'is_unit_special_hold': False})
 
     def action_set_reserved(self):
+        """Open customer selection wizard to tentatively sell (reserve) the unit."""
         self.ensure_one()
 
         return {
@@ -200,8 +263,8 @@ class UnitDetails(models.Model):
         }
 
     def action_set_cancel(self):
+        """Cancel unit, validate no confirmed sale orders exist, and cancel any quotation orders."""
         for unit in self:
-            # Check for confirmed sale orders
             sale_orders = self.env['sale.order.line'].search([
                 ('product_id.default_code', '=', unit.unit_code)
             ]).mapped('order_id')
@@ -213,12 +276,10 @@ class UnitDetails(models.Model):
                       "Please handle the sale order(s) before canceling the unit.")
                 )
 
-            # Cancel quotation sale orders
             quotation_orders = sale_orders.filtered(lambda so: so.state in ['draft', 'sent'])
             for order in quotation_orders:
                 order.action_cancel()
 
-            # Update the unit status
             unit.write({
                 'unit_status': 'cancel',
                 'is_unit_special_hold': False,
@@ -227,13 +288,16 @@ class UnitDetails(models.Model):
             self._update_unit_activity('cancel')
 
     def action_set_reset(self):
+        """Reset unit status back to draft."""
         self.write({'unit_status': 'draft'})
 
     def action_set_special_hold(self):
+        """Mark unit with special hold status and log activity."""
         self.write({'unit_status': 'special_hold', 'is_unit_special_hold': True})
         self._update_unit_activity('special_hold')
 
     def _update_unit_activity(self, activity_type):
+        """Create an activity log entry for unit status changes."""
         self.ensure_one()
         self.env['unit.activity'].create({
             'user_id': self.env.uid,
@@ -254,6 +318,7 @@ class UnitDetails(models.Model):
                 record.is_include_villas = False
 
     def action_open_products(self):
+        """Open the associated product template form view for this unit."""
         self.ensure_one()
         product = self.env['product.template'].search([('default_code', '=', self.unit_code)], limit=1)
         if product:
@@ -266,6 +331,7 @@ class UnitDetails(models.Model):
             }
 
     def action_open_sale_orders(self):
+        """Open all sale orders associated with this unit."""
         self.ensure_one()
 
         sale_order_lines = self.env['sale.order.line'].search([
@@ -284,6 +350,7 @@ class UnitDetails(models.Model):
 
     @api.depends('unit_code')
     def _compute_sale_order_count(self):
+        """Calculate the number of sale orders referencing this unit."""
         for record in self:
             sale_order_lines = self.env['sale.order.line'].search([
                 ('product_id.default_code', '=', record.unit_code)

@@ -1,5 +1,5 @@
+# -*- coding: utf-8 -*-
 from odoo import api, fields, models, _
-from odoo.exceptions import ValidationError
 
 
 class FloorDetails(models.Model):
@@ -27,6 +27,7 @@ class FloorDetails(models.Model):
 
     @api.onchange('apartment_details_id', 'tower_details_id')
     def _onchange_apartment_details_id(self):
+        """Auto-generate floor name based on apartment/tower prefix and sequential numbering."""
         if self.apartment_details_id:
             if self.apartment_details_id.is_multiple_towers:
                 if self.tower_details_id and self.tower_details_id.tower_prefix:
@@ -72,6 +73,7 @@ class FloorDetails(models.Model):
 
     @api.depends('unit_details_ids.unit_status')
     def _compute_is_active(self):
+        """Set floor as active if at least one associated unit has 'available' status."""
         for record in self:
             units = self.env['unit.details'].search([('floor_details_id', '=', record.id)])
             if any(unit.unit_status == 'available' for unit in units):
@@ -81,20 +83,24 @@ class FloorDetails(models.Model):
 
     @api.depends('unit_details_ids')
     def _compute_total_units(self):
+        """Calculate total number of units associated with the floor."""
         for record in self:
             record.total_units = len(record.unit_details_ids)
 
     @api.depends('unit_details_ids')
     def _compute_available_units(self):
+        """Count units with 'available' status on the floor."""
         for record in self:
             record.available_units = len(record.unit_details_ids.filtered(lambda unit: unit.unit_status == 'available'))
 
     @api.depends('unit_details_ids')
     def _compute_reserved_units(self):
+        """Count units with 'reserved' status on the floor."""
         for record in self:
             record.reserved_units = len(record.unit_details_ids.filtered(lambda unit: unit.unit_status == 'reserved'))
 
     @api.depends('unit_details_ids')
     def _compute_sold_units(self):
+        """Count units with 'sold' status on the floor."""
         for record in self:
             record.sold_units = len(record.unit_details_ids.filtered(lambda unit: unit.unit_status == 'sold'))
