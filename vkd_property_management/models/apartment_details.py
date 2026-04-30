@@ -16,7 +16,7 @@ class ApartmentDetails(models.Model):
     address_line_2 = fields.Char(string='Address Line 2')
     city = fields.Char(string='City', required=True)
     zip_code = fields.Char(string='Zip Code')
-    is_publish = fields.Boolean(string='Publish on Website', default=False)
+    is_publish = fields.Boolean(string='Publish on Portal', default=False)
     is_active = fields.Boolean(string='Active', default=True, compute='_compute_is_active', store=True)
     unit_details_ids = fields.One2many(comodel_name='unit.details', inverse_name='apartment_details_id', string='Units')
     floor_details_ids = fields.One2many(comodel_name='floor.details', inverse_name='apartment_details_id', string='Floors')

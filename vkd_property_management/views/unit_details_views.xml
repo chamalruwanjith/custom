@@ -64,6 +64,7 @@
                             <field name="is_include_villas" invisible="1" readonly="unit_status != 'draft'"/>
                             <field name="unit_type" widget="radio" options="{'horizontal': true}"
                                    invisible="is_include_villas == False" readonly="unit_status != 'draft'"/>
+                            <field name="villa_type" readonly="unit_status != 'draft'" invisible="unit_type != 'villa'"/>
                             <field name="is_multiple_tower_apartment" invisible="1" readonly="unit_status != 'draft'"/>
                             <field name="tower_details_id"
                                    domain="[('apartment_details_id', '=', apartment_details_id)]"
@@ -89,7 +90,21 @@
                         <page string="Unit Information">
                             <group>
                                 <group>
-                                    <field name="total_area" readonly="unit_status != 'draft'"/>
+                                    <div class="o_row">
+                                        <label for="total_area" string="Total Area"
+                                               style="font-weight:bold; width: 200px;"/>
+                                        <div style="display: flex; align-items: center; gap: 12px;">
+                                            <field name="total_area" class="oe_inline" style="width: 180px;"
+                                                    readonly="unit_status != 'draft'"/>
+                                            <field name="total_area_uom_id" placeholder="Measure"
+                                                   style="width: 200px; min-width: 150px;"
+                                                   readonly="unit_status != 'draft'"
+                                                   domain="[('category_id.name', '=', 'Surface')]"/>
+                                        </div>
+                                    </div>
+                                    <div class="o_separator"></div>
+                                    <field name="house_area" readonly="unit_status != 'draft'" invisible="unit_type != 'villa'"/>
+                                    <field name="garden_area" readonly="unit_status != 'draft'"/>
                                 </group>
                                 <group>
                                     <field name="is_multiple_floors" invisible="unit_type == 'villa'"
@@ -127,22 +142,22 @@
                                 <field colspan="2" name="special_note" nolabel="1" placeholder="Special Notes..."/>
                             </group>
                         </page>
-                        <page string="Images">
-                            <group>
-                                <group>
-                                    <field name="unit_images_1" widget='image' style="width:350px;height:350px;"
-                                           readonly="unit_status != 'draft'"/>
-                                    <field name="unit_images_2" widget='image' style="width:350px;height:350px;"
-                                           readonly="unit_status != 'draft'"/>
-                                </group>
-                                <group>
-                                    <field name="unit_images_3" widget='image' style="width:350px;height:350px;"
-                                           readonly="unit_status != 'draft'"/>
-                                    <field name="unit_images_4" widget='image' style="width:350px;height:350px;"
-                                           readonly="unit_status != 'draft'"/>
-                                </group>
-                            </group>
-                        </page>
+<!--                        <page string="Images">-->
+<!--                            <group>-->
+<!--                                <group>-->
+<!--                                    <field name="unit_images_1" widget='image' style="width:350px;height:350px;"-->
+<!--                                           readonly="unit_status != 'draft'"/>-->
+<!--                                    <field name="unit_images_2" widget='image' style="width:350px;height:350px;"-->
+<!--                                           readonly="unit_status != 'draft'"/>-->
+<!--                                </group>-->
+<!--                                <group>-->
+<!--                                    <field name="unit_images_3" widget='image' style="width:350px;height:350px;"-->
+<!--                                           readonly="unit_status != 'draft'"/>-->
+<!--                                    <field name="unit_images_4" widget='image' style="width:350px;height:350px;"-->
+<!--                                           readonly="unit_status != 'draft'"/>-->
+<!--                                </group>-->
+<!--                            </group>-->
+<!--                        </page>-->
                     </notebook>
                 </sheet>
                 <div class="oe_chatter" groups="vkd_property_management.group_property_management_manager">

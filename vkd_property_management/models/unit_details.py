@@ -19,7 +19,6 @@ class UnitDetails(models.Model):
     unit_price_usd = fields.Float(string='Unit Price USD', tracking=True)
     unit_address = fields.Char(string='Unit Address')
     total_area = fields.Float(string='Total Area')
-    usable_area = fields.Float(string='Usable Area')
     number_of_floors = fields.Integer(string='Number of Floors')
     number_of_rooms = fields.Integer(string='Number of Rooms')
     number_of_bathrooms = fields.Integer(string='Number of Bathrooms')
@@ -70,6 +69,10 @@ class UnitDetails(models.Model):
     is_property_user = fields.Boolean(string='Property User', default=True, compute='_compute_property_user')
     multiple_price_ids = fields.One2many(comodel_name='unit.multiple.price', inverse_name='unit_details_id',
                                          string='Multiple Prices')
+    villa_type = fields.Selection([('villa', 'Villa'), ('house', 'House'), ('cottage', 'Cottage')], string='Villa Type')
+    house_area = fields.Float(string='House Area(Sqft)')
+    total_area_uom_id = fields.Many2one(comodel_name='uom.uom', string="Unit of Measure")
+    garden_area = fields.Float(string='Garden Area(Sqft)')
 
     @api.model
     def create(self, vals):
