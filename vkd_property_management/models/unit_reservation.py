@@ -174,12 +174,17 @@ class UnitReservation(models.Model):
             raise ValidationError(
                 _('No product found for this unit. Please ensure the product is created in Inventory.'))
 
+        pricelist_price = (
+            self.product_pricelist_id._get_product_price(product, 1.0)
+            if self.product_pricelist_id else product.lst_price
+        )
+
         sale_order = self.env['sale.order'].create({
             'partner_id': self.partner_id.id,
             'order_line': [(0, 0, {
                 'product_id': product.id,
                 'product_uom_qty': 1,
-                'price_unit': self.discounted_price or product.lst_price,
+                'price_unit': self.discounted_price or pricelist_price,
             })],
             'origin': self.reservation_id,
             'pricelist_id': self.product_pricelist_id.id,
@@ -243,13 +248,15 @@ class UnitReservation(models.Model):
             _logger.info("Product found: %s (ID: %s, Price: %s)", product.name, product.id, product.lst_price)
 
             try:
+                pricelist_price = sudo_self.product_pricelist_id._get_product_price(product, 1.0)
+
                 sale_order_values = {
                     'partner_id': sudo_self.partner_id.id,
                     'pricelist_id': sudo_self.product_pricelist_id.id,
                     'order_line': [(0, 0, {
                         'product_id': product.id,
                         'product_uom_qty': 1,
-                        'price_unit': sudo_self.discounted_price or product.lst_price,
+                        'price_unit': sudo_self.discounted_price or pricelist_price,
                     })],
                     'origin': sudo_self.reservation_id,
                 }

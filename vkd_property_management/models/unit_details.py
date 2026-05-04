@@ -118,6 +118,9 @@ class UnitDetails(models.Model):
                     'inventory_quantity': 1.0,
                 })._apply_inventory()
 
+        if record.multiple_price_ids:
+            record.multiple_price_ids._sync_to_pricelists()
+
         return record
 
     def write(self, vals):
