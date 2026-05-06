@@ -12,10 +12,11 @@ class ResConfigSettings(models.TransientModel):
 
     def action_get_access_token(self):
         redirect_url = "%s/crm_facebook_leads/auth" % (self.env['ir.config_parameter'].get_param('web.base.url'))
-        auth_url = 'https://www.facebook.com/dialog/oauth?response_type=token&client_id={}&redirect_uri={}&scope={}'.format(
+        auth_url = 'https://www.facebook.com/dialog/oauth?response_type=token&client_id={}&redirect_uri={}&scope={}&state=cid:{}'.format(
             self.crm_fb_app_id,
             redirect_url,
-            'leads_retrieval,pages_manage_ads,pages_read_engagement,ads_management,business_management,pages_show_list'
+            'leads_retrieval,pages_manage_ads,pages_read_engagement,ads_management,business_management,pages_show_list',
+            self.company_id.id,
         )
 
         res = {
@@ -35,11 +36,12 @@ class ResConfigSettings(models.TransientModel):
         if not r.get('data'):
             return
         for p in r['data']:
-            if not self.env['crm.facebook.page'].search([('name', '=', p.get('id'))]):
-                self.env['crm.facebook.page'].create({
+            if not self.env['crm.facebook.page'].sudo().search([('name', '=', p.get('id'))]):
+                self.env['crm.facebook.page'].sudo().create({
                     'label': p.get('name'),
                     'name': p.get('id'),
-                    'access_token': p.get('access_token')
+                    'access_token': p.get('access_token'),
+                    'company_id': self.company_id.id,
                 })
         action = self.env.ref('vkd_crm_facebook_leads.action_crm_facebook_page').read()[0]
         return action

@@ -16,6 +16,12 @@
                         <field name="facebook_campaign_id"/>
                         <field name="facebook_is_organic"/>
                     </group>
+                    <group name="lead_classification" string="Lead Classification">
+                        <field name="project_id"/>
+                        <field name="lead_type_id"/>
+                        <field name="source_country_id"/>
+                        <field name="digital_team_id"/>
+                    </group>
                 </page>
             </xpath>
             <xpath expr="//label[@for='date_deadline']" position='before'>
@@ -133,6 +139,30 @@
             </xpath>
             <xpath expr="//field[@name='tag_ids']" position='attributes'>
                 <attribute name="invisible">1</attribute>
+            </xpath>
+        </field>
+    </record>
+
+
+    <record id="crm_lead_kanban_view_facebook" model="ir.ui.view">
+        <field name="name">crm.lead.kanban.inherit.vkd_crm_facebook_leads</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_case_kanban_view_leads"/>
+        <field name="arch" type="xml">
+            <xpath expr="//kanban/field[@name='team_id']" position="after">
+                <field name="full_name"/>
+                <field name="project_id"/>
+            </xpath>
+            <xpath expr="//t[@t-name='kanban-box']//span[@t-esc='record.partner_id.value']/.." position="after">
+                <div t-if="record.full_name.value">
+                    <span class="o_text_overflow" t-esc="record.full_name.value"/>
+                </div>
+                <div t-if="record.project_id.value">
+                    <small class="text-muted">
+                        <i class="fa fa-building-o me-1" title="Project"/>
+                        <span t-esc="record.project_id.value"/>
+                    </small>
+                </div>
             </xpath>
         </field>
     </record>

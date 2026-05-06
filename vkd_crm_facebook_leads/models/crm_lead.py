@@ -41,6 +41,10 @@ class CrmLead(models.Model):
 
     lead_allocate_id = fields.Many2one('lead.allocate', string='Lead Allocate')
 
+    project_id = fields.Many2one('apartment.details', string='Project', readonly=True)
+    lead_type_id = fields.Many2one('crm.lead.type', string='Lead Type', readonly=True)
+    source_country_id = fields.Many2one('res.country', string='Source Country', readonly=True)
+    digital_team_id = fields.Many2one('crm.team', string='Digital Team', readonly=True)
 
     _sql_constraints = [
         ('facebook_lead_unique', 'unique(facebook_lead_id)',
@@ -98,13 +102,26 @@ class CrmLead(models.Model):
         campaign_cache[campaign_id] = campaign.id
         return campaign.id
 
+    def _find_lead_allocate(self, lead_create_time, form):
+        domain = [
+            ('from_time', '<=', lead_create_time),
+            ('to_time', '>=', lead_create_time),
+        ]
+        if form.team_id:
+            domain += ['|', ('team_id', '=', form.team_id.id), ('team_id', '=', False)]
+        company_id = form.page_id.company_id.id if form.page_id and form.page_id.company_id else False
+        if company_id:
+            domain += ['|', ('company_id', '=', company_id), ('company_id', '=', False)]
+        return self.env['lead.allocate'].sudo().search(domain, limit=1, order='from_time desc')
+
     def prepare_lead_creation(self, lead, form, ad_cache, adset_cache, campaign_cache):
         vals, notes = self.get_fields_from_data(lead, form)
         lead_create_time = lead['created_time'].split('+')[0].replace('T', ' ')
-        lead_allocate = self.env['lead.allocate'].search([
-            ('from_time', '<=', lead_create_time),
-            ('to_time', '>=', lead_create_time),
-        ], limit=1, order='from_time desc')
+        lead_allocate = self._find_lead_allocate(lead_create_time, form)
+
+        assigned_user = None
+        if lead_allocate:
+            assigned_user = lead_allocate.get_next_user()
 
         vals.update({
             'facebook_lead_id': lead['id'],
@@ -116,12 +133,15 @@ class CrmLead(models.Model):
             'campaign_id': form.campaign_id.id or self.get_campaign(lead, campaign_cache),
             'source_id': form.source_id.id if form.source_id else None,
             'medium_id': form.medium_id.id or self.get_ad(lead, ad_cache),
-            # 'user_id': form.team_id.user_id.id if form.team_id and form.team_id.user_id else None,
-            'user_id': lead_allocate.user_id.id if lead_allocate.user_id else None,
+            'user_id': assigned_user.id if assigned_user else None,
             'facebook_adset_id': self.get_adset(lead, adset_cache),
             'facebook_form_id': form.id,
             'facebook_date_create': lead['created_time'].split('+')[0].replace('T', ' '),
             'lead_allocate_id': lead_allocate.id if lead_allocate else None,
+            'project_id': form.project_id.id or None,
+            'lead_type_id': form.lead_type_id.id or None,
+            'source_country_id': form.country_id.id or None,
+            'digital_team_id': form.digital_team_id.id or None,
         })
         return vals
 
@@ -131,7 +151,7 @@ class CrmLead(models.Model):
 
     def get_opportunity_name(self, vals, lead, form):
         if not vals.get('name'):
-            vals['name'] = '%s - %s' % (form.name, lead['id'])
+            vals['name'] = '%s' % (form.name)
         return vals['name']
 
     def get_fields_from_data(self, lead, form):
@@ -210,7 +230,7 @@ class CrmLead(models.Model):
     @api.model
     def get_facebook_leads(self):
         fb_api = "https://graph.facebook.com/v19.0/"
-        for form in self.env['crm.facebook.form'].search([]):
+        for form in self.env['crm.facebook.form'].sudo().search([]):
             form_status = self.get_form_status(form.facebook_form_id, form.access_token)
             if form_status != 'ACTIVE':
                 _logger.info('Form %s is not active, skipping lead fetch.' % form.name)
@@ -218,8 +238,7 @@ class CrmLead(models.Model):
             else:
                 form.status = True
 
-            # /!\ NOTE: We have to try lead creation if it fails we just log it into the Lead Form?
-            _logger.info('Starting to fetch leads from Form: %s' % form.name)
+            _logger.info('Starting to fetch leads from Form: %s (Company: %s)' % (form.name, form.company_id.name or 'N/A'))
             params = {'access_token': form.access_token,
                       'fields': 'created_time,field_data,ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,is_organic,status'
                       }
@@ -230,9 +249,11 @@ class CrmLead(models.Model):
                 })
             r = requests.get(fb_api + form.facebook_form_id + "/leads", params=params).json()
             if r.get('error'):
-                raise UserError(r['error']['message'])
-            self.lead_processing(r, form)
-            # Update the date_retrieval field after successful fetching
+                _logger.error('Facebook API error for form %s: %s' % (form.name, r['error']['message']))
+                continue
+            # Use form's company context so company-specific defaults apply to created leads
+            lead_env = self.sudo().with_company(form.company_id) if form.company_id else self.sudo()
+            lead_env.lead_processing(r, form)
             form.date_retrieval = fields.Datetime.now()
         _logger.info('Fetch of leads has ended')
 

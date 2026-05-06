@@ -13,7 +13,7 @@
                         <field name="end_date" invisible="report_by == 'date'"/>
                     </group>
                     <group>
-                        <field name="shift_type"/>
+                        <field name="shift_id"/>
                     </group>
                     <footer>
                         <button string="Generate" type="object" name="action_generate_report" class="btn-primary"/>

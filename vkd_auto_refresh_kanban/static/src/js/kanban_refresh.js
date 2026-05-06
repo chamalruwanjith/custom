@@ -12,7 +12,6 @@ patch(StreamPostKanbanController.prototype, {
         });
 
         onWillUnmount(() => {
-            console.log('Component is being destroyed');
             this.stopAutoRefresh();
         });
     },
@@ -44,14 +43,12 @@ patch(StreamPostKanbanController.prototype, {
     performRefresh() {
         if (this._onRefreshStats) {
             this._onRefreshStats();
-            console.log("Content refreshed status");
         }
     },
 
     performRefreshView() {
         if (this._refreshView) {
             this._refreshView();
-            console.log("Content refreshed automatically");
         } else if (this.model && this.model.load) {
             this.model.load();
         } else {
