@@ -8,69 +8,100 @@ class LeadAllocate(models.Model):
     _name = 'lead.allocate'
     _inherit = 'mail.thread'
     _description = 'Lead Allocate'
-    _rec_name = "team_id"
+    _rec_name = 'display_name'
 
-    team_id = fields.Many2one('crm.team', string='Team', tracking=True)
+    team_id = fields.Many2one('crm.team', string='Team', required=True, tracking=True)
+    company_id = fields.Many2one('res.company', string='Company', default=lambda self: self.env.company)
+    distribution_type = fields.Selection(
+        [('single', 'Single Agent (Lands)'), ('round_robin', 'Round Robin (Skyline)')],
+        string='Distribution Type', default='single', required=True, tracking=True,
+    )
+
     user_id = fields.Many2one('res.users', string='Agent', tracking=True)
-    shift_date = fields.Date(string='Shift Date', default=fields.Date.today, tracking=True)
-    shift_type = fields.Selection(
-        [('day', 'Day Shift'), ('night', 'Night Shift'), ('both', 'Both')], string="Shift Type", tracking=True)
-    from_time = fields.Datetime(string='From', tracking=True)
-    to_time = fields.Datetime(string='To', tracking=True)
+    allocate_line_ids = fields.One2many('lead.allocate.line', 'allocate_id', string='Agents')
+    next_user_index = fields.Integer(string='Next Agent Index', default=0, copy=False)
 
-    # @api.onchange('team_id')
-    # def _onchange_team_id(self):
-    #     """Update the user_id field's domain based on the selected team_id"""
-    #     if self.team_id:
-    #         user_ids = self.env['crm.team.member'].search([('crm_team_id', '=', self.team_id.id)]).mapped('user_id')
-    #         return {'domain': {'user_id': [('id', 'in', user_ids.ids)]}}
-    #     else:
-    #         return {'domain': {'user_id': []}}
+    shift_date = fields.Date(string='Shift Date', default=fields.Date.today, required=True, tracking=True)
+    shift_id = fields.Many2one('lead.shift', string='Shift', required=True, tracking=True)
+    from_time = fields.Datetime(string='From', compute='_compute_shift_times', store=True, readonly=True, tracking=True)
+    to_time = fields.Datetime(string='To', compute='_compute_shift_times', store=True, readonly=True, tracking=True)
 
-    @api.onchange('shift_type')
-    def onchange_shift_type(self):
-        if self.shift_date and self.shift_type:
-            shift_date_dt = fields.Date.from_string(self.shift_date)
+    display_name = fields.Char(compute='_compute_display_name', store=True)
 
-            ist_tz = pytz.timezone('Asia/Colombo')
+    @api.depends('team_id', 'shift_id', 'shift_date')
+    def _compute_display_name(self):
+        for rec in self:
+            parts = []
+            if rec.team_id:
+                parts.append(rec.team_id.name)
+            if rec.shift_id:
+                parts.append(rec.shift_id.name)
+            if rec.shift_date:
+                parts.append(str(rec.shift_date))
+            rec.display_name = ' / '.join(parts) if parts else '/'
 
-            if self.shift_type == 'day':
-                # Day Shift: From 8:00 AM to 5:00 PM
-                from_time_utc = ist_tz.localize(
-                    datetime.combine(shift_date_dt, datetime.min.time()) + timedelta(hours=8)).astimezone(pytz.utc)
-                to_time_utc = ist_tz.localize(
-                    datetime.combine(shift_date_dt, datetime.min.time()) + timedelta(hours=17)).astimezone(pytz.utc)
-                self.from_time = fields.Datetime.to_string(from_time_utc)
-                self.to_time = fields.Datetime.to_string(to_time_utc)
-            elif self.shift_type == 'night':
-                # Night Shift: From 5:00 PM to 8:00 AM the next day
-                from_time_utc = ist_tz.localize(
-                    datetime.combine(shift_date_dt, datetime.min.time()) + timedelta(hours=17)).astimezone(pytz.utc)
-                to_time_utc = ist_tz.localize(
-                    datetime.combine(shift_date_dt, datetime.min.time()) + timedelta(days=1, hours=8)).astimezone(
-                    pytz.utc)
-                self.from_time = fields.Datetime.to_string(from_time_utc)
-                self.to_time = fields.Datetime.to_string(to_time_utc)
-            elif self.shift_type == 'both':
-                # Both Shifts: From 8:00 AM to 8:00 AM the next day
-                from_time_utc = ist_tz.localize(
-                    datetime.combine(shift_date_dt, datetime.min.time()) + timedelta(hours=8)).astimezone(pytz.utc)
-                to_time_utc = ist_tz.localize(
-                    datetime.combine(shift_date_dt, datetime.min.time()) + timedelta(days=1, hours=8)).astimezone(
-                    pytz.utc)
-                self.from_time = fields.Datetime.to_string(from_time_utc)
-                self.to_time = fields.Datetime.to_string(to_time_utc)
+    @api.depends('shift_id', 'shift_date')
+    def _compute_shift_times(self):
+        ist_tz = pytz.timezone('Asia/Colombo')
+        for rec in self:
+            if not (rec.shift_id and rec.shift_date):
+                rec.from_time = False
+                rec.to_time = False
+                continue
+            from_h = int(rec.shift_id.from_hour)
+            from_m = round((rec.shift_id.from_hour - from_h) * 60)
+            to_h = int(rec.shift_id.to_hour)
+            to_m = round((rec.shift_id.to_hour - to_h) * 60)
+            from_dt = ist_tz.localize(
+                datetime.combine(rec.shift_date, datetime.min.time()) + timedelta(hours=from_h, minutes=from_m))
+            to_base = rec.shift_date + timedelta(days=1) if rec.shift_id.next_day else rec.shift_date
+            to_dt = ist_tz.localize(
+                datetime.combine(to_base, datetime.min.time()) + timedelta(hours=to_h, minutes=to_m))
+            rec.from_time = from_dt.astimezone(pytz.utc).replace(tzinfo=None)
+            rec.to_time = to_dt.astimezone(pytz.utc).replace(tzinfo=None)
 
-    @api.constrains('from_time', 'to_time')
+    @api.constrains('distribution_type', 'user_id', 'allocate_line_ids')
+    def _check_agents(self):
+        for rec in self:
+            if rec.distribution_type == 'single' and not rec.user_id:
+                raise ValidationError('Single Agent mode requires an Agent to be set.')
+            if rec.distribution_type == 'round_robin':
+                if not rec.allocate_line_ids:
+                    raise ValidationError('Round Robin mode requires at least one agent in the Agents list.')
+                if len(rec.allocate_line_ids) > 5:
+                    raise ValidationError('Round Robin mode allows a maximum of 5 agents per shift.')
+
+    @api.constrains('from_time', 'to_time', 'team_id')
     def _check_time_overlap(self):
         for record in self:
             if record.from_time and record.to_time:
-                overlapping_shifts = self.search([
+                overlapping = self.search([
                     ('team_id', '=', record.team_id.id),
-                    ('shift_date', '=', record.shift_date),
                     ('id', '!=', record.id),
                     ('from_time', '<', record.to_time),
-                    ('to_time', '>', record.from_time)
+                    ('to_time', '>', record.from_time),
                 ])
-                if overlapping_shifts:
-                    raise ValidationError('The selected time slot is already taken.')
+                if overlapping:
+                    raise ValidationError(
+                        'The time slot overlaps with an existing allocation for team "%s".' % record.team_id.name
+                    )
+
+    def get_next_user(self):
+        self.ensure_one()
+        if self.distribution_type == 'single':
+            return self.user_id
+
+        lines = self.allocate_line_ids.sorted('sequence')
+        if not lines:
+            return self.env['res.users']
+
+        idx = self.next_user_index % len(lines)
+        user = lines[idx].user_id
+        lines[idx].lead_count += 1
+        self.next_user_index = (idx + 1) % len(lines)
+        return user
+
+    def reset_lead_counts(self):
+        for rec in self:
+            rec.next_user_index = 0
+            rec.allocate_line_ids.write({'lead_count': 0})

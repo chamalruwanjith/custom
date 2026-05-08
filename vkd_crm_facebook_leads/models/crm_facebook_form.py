@@ -25,6 +25,11 @@ class CrmFacebookForm(models.Model):
     status = fields.Boolean(string='Active', default=False)
     company_id = fields.Many2one('res.company', required=True, string='Company')
 
+    project_id = fields.Many2one('apartment.details', string='Project')
+    lead_type_id = fields.Many2one('crm.lead.type', string='Lead Type')
+    country_id = fields.Many2one('res.country', string='Country')
+    digital_team_id = fields.Many2one('crm.team', string='Digital Team')
+
     def get_fields(self):
         self.fields_mapping_ids.unlink()
         r = requests.get("https://graph.facebook.com/v19.0/" + self.facebook_form_id,

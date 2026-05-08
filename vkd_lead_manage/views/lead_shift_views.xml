@@ -1,0 +1,48 @@
+<odoo>
+    <record id="lead_shift_view_form" model="ir.ui.view">
+        <field name="name">lead.shift.view.form</field>
+        <field name="model">lead.shift</field>
+        <field name="arch" type="xml">
+            <form string="Shift">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="from_hour" widget="float_time" string="From"/>
+                        <field name="to_hour" widget="float_time" string="To"/>
+                        <field name="next_day"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="lead_shift_view_tree" model="ir.ui.view">
+        <field name="name">lead.shift.view.tree</field>
+        <field name="model">lead.shift</field>
+        <field name="arch" type="xml">
+            <tree string="Shifts">
+                <field name="name"/>
+                <field name="from_hour" widget="float_time" string="From"/>
+                <field name="to_hour" widget="float_time" string="To"/>
+                <field name="next_day"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_lead_shift_views" model="ir.actions.act_window">
+        <field name="name">Shifts</field>
+        <field name="res_model">lead.shift</field>
+        <field name="view_mode">tree,form</field>
+        <field name="view_id" ref="lead_shift_view_tree"/>
+    </record>
+
+    <menuitem
+            id="menu_crm_lead_shift"
+            name="Shifts"
+            parent="crm.menu_crm_config_lead"
+            sequence="3"
+            action="action_lead_shift_views"
+            groups="sales_team.group_sale_manager"/>
+</odoo>

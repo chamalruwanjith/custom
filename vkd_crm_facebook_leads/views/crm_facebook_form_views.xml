@@ -27,6 +27,12 @@
                             <field name="medium_id"/>
                             <field name="source_id"/>
                         </group>
+                        <group string="Lead Classification">
+                            <field name="project_id"/>
+                            <field name="lead_type_id"/>
+                            <field name="country_id"/>
+                            <field name="digital_team_id"/>
+                        </group>
                     </group>
                     <group colspan="2" string="Mappings">
                         <field name="fields_mapping_ids">
@@ -53,6 +59,7 @@
                 <field name="name"/>
                 <field name="facebook_form_id" readonly='1'/>
                 <field name="page_id" readonly='1'/>
+                <field name="company_id" groups="base.group_multi_company"/>
                 <field name="team_id"/>
                 <field name="status"/>
             </tree>

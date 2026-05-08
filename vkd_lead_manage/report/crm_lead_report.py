@@ -1,10 +1,12 @@
 import base64
 import io
 import pytz
+from datetime import datetime
+from collections import defaultdict
+
 from odoo import models, fields, _
 from odoo.exceptions import UserError
 from odoo.tools.misc import xlsxwriter
-from collections import defaultdict
 
 
 class CRMLeadReport(models.TransientModel):
@@ -17,10 +19,7 @@ class CRMLeadReport(models.TransientModel):
     )
     start_date = fields.Date(string="Date", required=True)
     end_date = fields.Date(string="End Date")
-    shift_type = fields.Selection(
-        [('day', 'Day'), ('night', 'Night'), ('both', 'Both')],
-        string="Shift Type", required=True, default='day'
-    )
+    shift_id = fields.Many2one('lead.shift', string="Shift")
 
     def action_generate_report(self):
         colombo_tz = pytz.timezone('Asia/Colombo')
@@ -32,17 +31,23 @@ class CRMLeadReport(models.TransientModel):
 
         leads = self.env['crm.lead'].search([
             ('create_date', '>=', self.start_date),
-            ('create_date', '<=', self.end_date)
+            ('create_date', '<=', self.end_date),
         ], order='create_date desc')
         if not leads:
             raise UserError(_("No leads found for the selected period."))
+
+        leads = self._filter_by_shift(leads, colombo_tz)
+        if not leads:
+            raise UserError(_("No leads found for the selected period and shift."))
 
         output = io.BytesIO()
         workbook = xlsxwriter.Workbook(output, {'in_memory': True})
 
         self._generate_leads_sheet(workbook, leads, colombo_tz)
-
         self._generate_summary_sheet(workbook, leads)
+        self._generate_attend_sheet(workbook, leads, colombo_tz)
+        self._generate_project_sheet(workbook, leads, colombo_tz)
+        self._generate_agent_count_sheet(workbook, leads, colombo_tz)
 
         workbook.close()
         output.seek(0)
@@ -58,136 +63,358 @@ class CRMLeadReport(models.TransientModel):
             "target": "download",
         }
 
+    def _filter_by_shift(self, leads, colombo_tz):
+        if not self.shift_id:
+            return leads
+        from_h = self.shift_id.from_hour
+        to_h = self.shift_id.to_hour
+        next_day = self.shift_id.next_day
+
+        def _in_shift(lead):
+            if not lead.create_date:
+                return False
+            local_dt = pytz.utc.localize(lead.create_date).astimezone(colombo_tz)
+            t = local_dt.hour + local_dt.minute / 60.0
+            if next_day:
+                return t >= from_h or t < to_h
+            return from_h <= t < to_h
+
+        return leads.filtered(_in_shift)
+
+    def _period_label(self):
+        sd, ed = self.start_date, self.end_date
+        return sd.strftime('%m/%d/%Y') if sd == ed else \
+            f"{sd.strftime('%m/%d/%Y')} - {ed.strftime('%m/%d/%Y')}"
+
+    def _shift_label(self):
+        return self.shift_id.name if self.shift_id else 'All Leads'
+
+    @staticmethod
+    def _convert_to_local_time(datetime_field, timezone):
+        if datetime_field:
+            return pytz.utc.localize(datetime_field).astimezone(timezone).strftime('%Y-%m-%d %H:%M:%S')
+        return 'N/A'
+
     def _generate_leads_sheet(self, workbook, leads, colombo_tz):
         worksheet = workbook.add_worksheet("Leads Report")
 
-        header_format = workbook.add_format({
-            'bold': True, 'align': 'center', 'bg_color': '#F0F0F0', 'border': 1
-        })
-        data_format = workbook.add_format({'align': 'left', 'border': 1})
+        header_fmt = workbook.add_format({'bold': True, 'align': 'center', 'bg_color': '#F0F0F0', 'border': 1, 'text_wrap': True})
+        data_fmt   = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1})
+        num_fmt    = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
 
-        headers = ['Lead Name', 'Salesperson', 'Create Date Time', 'Attend Time', 'Response Time (minutes)']
-        worksheet.set_column(0, 0, 60)
-        worksheet.set_column(1, 1, 25)
-        worksheet.set_column(2, 2, 25)
-        worksheet.set_column(3, 3, 25)
-        worksheet.set_column(4, 4, 25)
+        headers = [
+            'Created Date', 'Created Time', 'Campaign',
+            'Full Name', 'Email', 'Contact Number', 'WhatsApp Number',
+            'Agent', 'Attended Time', 'Response Time (min)', 'Shift',
+        ]
+        col_widths = [14, 12, 20, 25, 28, 18, 18, 20, 20, 14, 16]
+        for col, (w, h) in enumerate(zip(col_widths, headers)):
+            worksheet.set_column(col, col, w)
+            worksheet.write(0, col, h, header_fmt)
+        worksheet.set_row(0, 30)
 
-        for col, header in enumerate(headers):
-            worksheet.write(0, col, header, header_format)
+        def _local(dt):
+            if not dt:
+                return None, None
+            local = pytz.utc.localize(dt).astimezone(colombo_tz)
+            return local.strftime('%m/%d/%Y'), local.strftime('%H:%M:%S')
 
         for row, lead in enumerate(leads, start=1):
-            response_time = lead.response_time if lead.response_time else 'N/A'
-            create_date_str = self._convert_to_local_time(lead.create_date, colombo_tz)
-            attend_time_str = self._convert_to_local_time(lead.attend_time, colombo_tz)
+            c_date, c_time = _local(lead.create_date)
+            a_date, a_time = _local(lead.attend_time)
+            attended_str   = f"{a_date} {a_time}" if a_date else ''
+            rt             = round(lead.response_time, 2) if lead.response_time else ''
+            shift          = lead.lead_allocate_id.shift_id.name if lead.lead_allocate_id and lead.lead_allocate_id.shift_id else ''
 
-            worksheet.write(row, 0, lead.name or 'N/A', data_format)
-            worksheet.write(row, 1, lead.user_id.name or 'Unassigned', data_format)
-            worksheet.write(row, 2, create_date_str, data_format)
-            worksheet.write(row, 3, attend_time_str, data_format)
-            worksheet.write(row, 4, round(response_time, 2) if response_time != 'N/A' else 'N/A', data_format)
+            worksheet.write(row, 0,  c_date or '',                          data_fmt)
+            worksheet.write(row, 1,  c_time or '',                          data_fmt)
+            worksheet.write(row, 2,  lead.campaign_id.name or '',           data_fmt)
+            worksheet.write(row, 3,  lead.full_name or '',                  data_fmt)
+            worksheet.write(row, 4,  lead.email_address or '',              data_fmt)
+            worksheet.write(row, 5,  lead.contact_number or '',             data_fmt)
+            worksheet.write(row, 6,  lead.whatsapp_number or '',            data_fmt)
+            worksheet.write(row, 7,  lead.user_id.name or 'Unassigned',    data_fmt)
+            worksheet.write(row, 8,  attended_str,                          data_fmt)
+            worksheet.write(row, 9,  rt,                                    num_fmt)
+            worksheet.write(row, 10, shift,                                 data_fmt)
+
+    # ── Sheet 2: Attendance summary (legacy) ────────────────────────────────
 
     def _generate_summary_sheet(self, workbook, leads):
         worksheet = workbook.add_worksheet("Summary Report")
 
-        header_format = workbook.add_format({
-            'bold': True, 'align': 'center', 'bg_color': '#FFD700', 'border': 1
-        })
-        data_format = workbook.add_format({'align': 'left', 'border': 1})
-        numeric_format = workbook.add_format({'align': 'center', 'border': 1})
-        green_format = workbook.add_format({'align': 'center', 'border': 1, 'bg_color': '#C6EFCE'})
-        yellow_format = workbook.add_format({'align': 'center', 'border': 1, 'bg_color': '#FFEB9C'})
-        red_format = workbook.add_format({'align': 'center', 'border': 1, 'bg_color': '#FFC7CE'})
+        header_fmt = workbook.add_format({'bold': True, 'align': 'center', 'bg_color': '#FFD700', 'border': 1})
+        data_fmt = workbook.add_format({'align': 'left', 'border': 1})
+        num_fmt = workbook.add_format({'align': 'center', 'border': 1})
+        green_fmt = workbook.add_format({'align': 'center', 'border': 1, 'bg_color': '#C6EFCE'})
+        yellow_fmt = workbook.add_format({'align': 'center', 'border': 1, 'bg_color': '#FFEB9C'})
+        red_fmt = workbook.add_format({'align': 'center', 'border': 1, 'bg_color': '#FFC7CE'})
 
-        worksheet.write(0, 0, "Attend Time Range", header_format)
-        worksheet.write(0, 1, "Count", header_format)
-        worksheet.write(0, 2, "Percentage", header_format)
-        worksheet.set_column(0, 0, 30)
-        worksheet.set_column(1, 1, 25)
-        worksheet.set_column(2, 2, 25)
+        for col, h in enumerate(["Attend Time Range", "Count", "Percentage"]):
+            worksheet.write(0, col, h, header_fmt)
+        worksheet.set_column(0, 2, 30)
 
-        response_categories = {
-            '0-5': 0,
-            '5-15': 0,
-            'over_15': 0,
-            'not_attended': 0
-        }
-
+        cats = {'0-5': 0, '5-15': 0, 'over_15': 0, 'not_attended': 0}
         for lead in leads:
             if lead.response_time:
                 if lead.response_time <= 5:
-                    response_categories['0-5'] += 1
+                    cats['0-5'] += 1
                 elif lead.response_time <= 15:
-                    response_categories['5-15'] += 1
+                    cats['5-15'] += 1
                 else:
-                    response_categories['over_15'] += 1
+                    cats['over_15'] += 1
             else:
-                response_categories['not_attended'] += 1
+                cats['not_attended'] += 1
 
-        total_leads = len(leads)
-        percentage_0_5 = (response_categories['0-5'] / total_leads) * 100 if total_leads else 0
+        total = len(leads)
+        pct_0_5 = (cats['0-5'] / total * 100) if total else 0
+        labels = ['0-5 minutes', '5-15 minutes', 'Over 15 minutes', 'Not Attended']
+        keys = ['0-5', '5-15', 'over_15', 'not_attended']
 
-        row = 1
-        response_time_ranges = ['0-5 minutes', '5-15 minutes', 'Over 15 minutes', 'Not Attended']
+        for row, (label, key) in enumerate(zip(labels, keys), start=1):
+            count = cats[key]
+            pct = (count / total * 100) if total else 0
+            worksheet.write(row, 0, label, data_fmt)
+            worksheet.write(row, 1, count, num_fmt)
+            worksheet.write(row, 2, f"{pct:.2f}%", num_fmt)
 
-        for idx, range_label in enumerate(response_time_ranges, start=1):
-            count = response_categories['0-5'] if range_label == '0-5 minutes' else \
-                    response_categories['5-15'] if range_label == '5-15 minutes' else \
-                    response_categories['over_15'] if range_label == 'Over 15 minutes' else \
-                    response_categories['not_attended']
+        worksheet.write(6, 0, "Overall Percentage (0-5 mins)", header_fmt)
+        fmt = green_fmt if pct_0_5 >= 85 else yellow_fmt if pct_0_5 >= 50 else red_fmt
+        worksheet.write(6, 1, f"{pct_0_5:.2f}%", fmt)
 
-            percentage = (count / total_leads) * 100 if total_leads else 0
 
-            worksheet.write(row, 0, range_label, data_format)
-            worksheet.write(row, 1, count, numeric_format)
-            worksheet.write(row, 2, f"{percentage:.2f}%", numeric_format)
-            row += 1
+    def _generate_attend_sheet(self, workbook, leads, colombo_tz):
+        worksheet = workbook.add_worksheet("Attendance Report")
 
-        worksheet.write(row + 2, 0, "Overall Percentage (0-5 mins)", header_format)
-        format_to_use = green_format if percentage_0_5 >= 85 else yellow_format if percentage_0_5 >= 50 else red_format
-        worksheet.write(row + 2, 1, f"{percentage_0_5:.2f}%", format_to_use)
+        title_fmt = workbook.add_format({'bold': True, 'font_size': 13, 'align': 'center', 'valign': 'vcenter'})
+        group_hdr_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#BDD7EE', 'border': 1})
+        col_hdr_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'bottom', 'bg_color': '#D9E1F2', 'border': 1, 'rotation': 90})
+        agent_fmt = workbook.add_format({'bold': True, 'align': 'left', 'valign': 'vcenter', 'border': 1})
+        data_fmt = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
+        total_row_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#D9D9D9', 'border': 1})
+        total_agent_fmt = workbook.add_format({'bold': True, 'align': 'left', 'valign': 'vcenter', 'bg_color': '#D9D9D9', 'border': 1})
+        green_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#00B050', 'font_color': '#FFFFFF', 'border': 1})
+        yellow_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#FFEB00', 'border': 1})
+        red_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#FF0000', 'font_color': '#FFFFFF', 'border': 1})
 
-    # def _generate_summary_sheet(self, workbook, leads):
-    #     """Generate the summary sheet."""
-    #     worksheet = workbook.add_worksheet("Summary Report")
-    #
-    #     # Styles
-    #     header_format = workbook.add_format({
-    #         'bold': True, 'align': 'center', 'bg_color': '#FFD700', 'border': 1
-    #     })
-    #     data_format = workbook.add_format({'align': 'left', 'border': 1})
-    #     numeric_format = workbook.add_format({'align': 'center', 'border': 1})
-    #
-    #     # Prepare summary data
-    #     summary_data = defaultdict(lambda: defaultdict(int))
-    #     for lead in leads:
-    #         shift = 'Day' if lead.create_date.hour < 18 else 'Night'
-    #         salesperson = lead.user_id.name or 'Unassigned'
-    #         summary_data[salesperson][shift] += 1
-    #
-    #     # Headers
-    #     headers = ['Salesperson', 'Day Leads', 'Night Leads', 'Total']
-    #     worksheet.set_column(0, 0, 30)
-    #     worksheet.set_column(1, 3, 15)
-    #     for col, header in enumerate(headers):
-    #         worksheet.write(0, col, header, header_format)
-    #
-    #     # Fill data
-    #     row = 1
-    #     for salesperson, shifts in summary_data.items():
-    #         day_leads = shifts.get('Day', 0)
-    #         night_leads = shifts.get('Night', 0)
-    #         total_leads = day_leads + night_leads
-    #
-    #         worksheet.write(row, 0, salesperson, data_format)
-    #         worksheet.write(row, 1, day_leads, numeric_format)
-    #         worksheet.write(row, 2, night_leads, numeric_format)
-    #         worksheet.write(row, 3, total_leads, numeric_format)
-    #         row += 1
+        def _pct_fmt(pct):
+            return green_fmt if pct >= 90 else yellow_fmt if pct >= 70 else red_fmt
 
-    def _convert_to_local_time(self, datetime_field, timezone):
-        """Convert a UTC datetime field to local timezone and format it."""
-        if datetime_field:
-            local_time = pytz.utc.localize(datetime_field).astimezone(timezone)
-            return local_time.strftime('%Y-%m-%d %H:%M:%S')
-        return 'N/A'
+        ZERO = {'0_5': 0, '5_15': 0, '15p': 0, 'na': 0}
+        agent_data = defaultdict(lambda: defaultdict(lambda: dict(ZERO)))
+        agent_names = {}
+        all_dates = set()
+
+        for lead in leads:
+            uid = lead.user_id.id if lead.user_id else 0
+            agent_names[uid] = lead.user_id.name if lead.user_id else 'Unassigned'
+            local_dt = pytz.utc.localize(lead.create_date).astimezone(colombo_tz)
+            date_str = local_dt.strftime('%m/%d/%Y')
+            all_dates.add(date_str)
+            if lead.attend_time:
+                rt = lead.response_time
+                if rt <= 5:
+                    agent_data[uid][date_str]['0_5'] += 1
+                elif rt <= 15:
+                    agent_data[uid][date_str]['5_15'] += 1
+                else:
+                    agent_data[uid][date_str]['15p'] += 1
+            else:
+                agent_data[uid][date_str]['na'] += 1
+
+        sorted_dates = sorted(all_dates, key=lambda d: datetime.strptime(d, '%m/%d/%Y'))
+        sorted_uids = sorted(agent_names.keys(), key=lambda uid: agent_names[uid])
+
+        COLS = 6
+        SUB_HDRS = ['0-5 min', '5-15 min', '15 min or above', 'Not Attend', 'Total', '%']
+        total_cols = 1 + COLS * (1 + len(sorted_dates))
+
+        title = f"Leads on-time Attending - {self._period_label()} - ({self._shift_label()})"
+        worksheet.merge_range(0, 0, 0, total_cols - 1, title, title_fmt)
+        worksheet.set_row(0, 25)
+
+        worksheet.set_row(1, 18)
+        worksheet.merge_range(1, 0, 2, 0, '', agent_fmt)
+        worksheet.merge_range(1, 1, 1, COLS, 'Total', group_hdr_fmt)
+        for i, d in enumerate(sorted_dates):
+            c = 1 + COLS * (i + 1)
+            worksheet.merge_range(1, c, 1, c + COLS - 1, d, group_hdr_fmt)
+
+        worksheet.set_row(2, 80)
+        for g in range(1 + len(sorted_dates)):
+            for s, sh in enumerate(SUB_HDRS):
+                worksheet.write(2, 1 + g * COLS + s, sh, col_hdr_fmt)
+
+        worksheet.set_column(0, 0, 14)
+        for col in range(1, total_cols):
+            worksheet.set_column(col, col, 6 if (col - 1) % COLS == 5 else 5)
+
+        def _write_group(row, col_start, b, base_fmt):
+            total = b['0_5'] + b['5_15'] + b['15p'] + b['na']
+            pct = (b['0_5'] / total * 100) if total > 0 else 0
+            worksheet.write(row, col_start,     b['0_5'], base_fmt)
+            worksheet.write(row, col_start + 1, b['5_15'], base_fmt)
+            worksheet.write(row, col_start + 2, b['15p'],  base_fmt)
+            worksheet.write(row, col_start + 3, b['na'],   base_fmt)
+            worksheet.write(row, col_start + 4, total,     base_fmt)
+            worksheet.write(row, col_start + 5, f"{pct:.0f}%" if total > 0 else '', _pct_fmt(pct) if total > 0 else base_fmt)
+
+        r = 3
+        grand = dict(ZERO)
+        date_totals = defaultdict(lambda: dict(ZERO))
+
+        for uid in sorted_uids:
+            worksheet.write(r, 0, agent_names[uid], agent_fmt)
+            overall = dict(ZERO)
+            for d in sorted_dates:
+                b = agent_data[uid].get(d, ZERO)
+                for k in ZERO:
+                    overall[k] += b[k]
+            _write_group(r, 1, overall, data_fmt)
+            for i, d in enumerate(sorted_dates):
+                b = agent_data[uid].get(d, ZERO)
+                _write_group(r, 1 + COLS * (i + 1), b, data_fmt)
+                for k in ZERO:
+                    date_totals[d][k] += b[k]
+            for k in ZERO:
+                grand[k] += overall[k]
+            r += 1
+
+        worksheet.write(r, 0, 'TOTAL', total_agent_fmt)
+        _write_group(r, 1, grand, total_row_fmt)
+        for i, d in enumerate(sorted_dates):
+            _write_group(r, 1 + COLS * (i + 1), date_totals[d], total_row_fmt)
+
+    def _generate_project_sheet(self, workbook, leads, colombo_tz):
+        worksheet = workbook.add_worksheet("Project Report")
+
+        title_fmt = workbook.add_format({'bold': True, 'font_size': 13, 'align': 'center', 'valign': 'vcenter'})
+        hdr_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#BDD7EE', 'border': 1, 'text_wrap': True})
+        data_fmt = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1})
+        num_fmt = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
+        total_label_fmt = workbook.add_format({'bold': True, 'align': 'left', 'valign': 'vcenter', 'bg_color': '#D9D9D9', 'border': 1})
+        total_num_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#D9D9D9', 'border': 1})
+
+        # key: (project, type, country, digital_team)
+        # value: {date_str: count}
+        group_data = defaultdict(lambda: defaultdict(int))
+        all_dates = set()
+
+        for lead in leads:
+            project = lead.project_id.apartment_name if lead.project_id else '(No Project)'
+            ltype = lead.lead_type_id.name if lead.lead_type_id else '(No Type)'
+            country = lead.source_country_id.name if lead.source_country_id else '(No Country)'
+            dteam = lead.digital_team_id.name if lead.digital_team_id else '(No Team)'
+            key = (project, ltype, country, dteam)
+
+            local_dt = pytz.utc.localize(lead.create_date).astimezone(colombo_tz)
+            date_str = local_dt.strftime('%m/%d/%Y')
+            all_dates.add(date_str)
+            group_data[key][date_str] += 1
+
+        sorted_dates = sorted(all_dates, key=lambda d: datetime.strptime(d, '%m/%d/%Y'))
+        sorted_keys = sorted(group_data.keys())
+
+        FIXED_COLS = 4  # PROJECT, TYPE, COUNTRY, DIGITAL TEAM
+        total_cols = FIXED_COLS + len(sorted_dates) + 1  # +1 for TOTAL column
+
+        title = f"Leads by Project - {self._period_label()} - ({self._shift_label()})"
+        worksheet.merge_range(0, 0, 0, total_cols - 1, title, title_fmt)
+        worksheet.set_row(0, 25)
+
+        for col, h in enumerate(['PROJECT', 'TYPE', 'COUNTRY', 'DIGITAL TEAM']):
+            worksheet.write(1, col, h, hdr_fmt)
+        for i, d in enumerate(sorted_dates):
+            worksheet.write(1, FIXED_COLS + i, d, hdr_fmt)
+        worksheet.write(1, FIXED_COLS + len(sorted_dates), 'TOTAL', hdr_fmt)
+
+        worksheet.set_column(0, 0, 28)  # PROJECT
+        worksheet.set_column(1, 1, 10)  # TYPE
+        worksheet.set_column(2, 2, 16)  # COUNTRY
+        worksheet.set_column(3, 3, 14)  # DIGITAL TEAM
+        for col in range(FIXED_COLS, total_cols):
+            worksheet.set_column(col, col, 10)
+
+        date_totals = defaultdict(int)
+        grand_total = 0
+        r = 2
+
+        for key in sorted_keys:
+            project, ltype, country, dteam = key
+            row_total = sum(group_data[key].values())
+            worksheet.write(r, 0, project, data_fmt)
+            worksheet.write(r, 1, ltype, data_fmt)
+            worksheet.write(r, 2, country, data_fmt)
+            worksheet.write(r, 3, dteam, data_fmt)
+            for i, d in enumerate(sorted_dates):
+                count = group_data[key].get(d, 0)
+                worksheet.write(r, FIXED_COLS + i, count or '', num_fmt)
+                date_totals[d] += count
+            worksheet.write(r, FIXED_COLS + len(sorted_dates), row_total, num_fmt)
+            grand_total += row_total
+            r += 1
+
+        worksheet.merge_range(r, 0, r, FIXED_COLS - 1, 'TOTAL', total_label_fmt)
+        for i, d in enumerate(sorted_dates):
+            worksheet.write(r, FIXED_COLS + i, date_totals[d] or '', total_num_fmt)
+        worksheet.write(r, FIXED_COLS + len(sorted_dates), grand_total, total_num_fmt)
+
+
+    def _generate_agent_count_sheet(self, workbook, leads, colombo_tz):
+        worksheet = workbook.add_worksheet("Agent Report")
+
+        title_fmt = workbook.add_format({'bold': True, 'font_size': 13, 'align': 'center', 'valign': 'vcenter'})
+        hdr_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#BDD7EE', 'border': 1})
+        agent_fmt = workbook.add_format({'bold': True, 'align': 'left', 'valign': 'vcenter', 'border': 1})
+        num_fmt = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
+        total_agent_fmt = workbook.add_format({'bold': True, 'align': 'left', 'valign': 'vcenter', 'bg_color': '#D9D9D9', 'border': 1})
+        total_num_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#D9D9D9', 'border': 1})
+
+        agent_data = defaultdict(lambda: defaultdict(int))
+        agent_names = {}
+        all_dates = set()
+
+        for lead in leads:
+            uid = lead.user_id.id if lead.user_id else 0
+            agent_names[uid] = lead.user_id.name if lead.user_id else 'Unassigned'
+            local_dt = pytz.utc.localize(lead.create_date).astimezone(colombo_tz)
+            date_str = local_dt.strftime('%m/%d/%Y')
+            all_dates.add(date_str)
+            agent_data[uid][date_str] += 1
+
+        sorted_dates = sorted(all_dates, key=lambda d: datetime.strptime(d, '%m/%d/%Y'))
+        sorted_uids = sorted(agent_names.keys(), key=lambda uid: agent_names[uid])
+        total_cols = 1 + len(sorted_dates) + 1  # agent + dates + TOTAL
+
+        title = f"Leads by Agent - {self._period_label()} - ({self._shift_label()})"
+        worksheet.merge_range(0, 0, 0, total_cols - 1, title, title_fmt)
+        worksheet.set_row(0, 25)
+
+        worksheet.write(1, 0, 'AGENT', hdr_fmt)
+        for i, d in enumerate(sorted_dates):
+            worksheet.write(1, 1 + i, d, hdr_fmt)
+        worksheet.write(1, 1 + len(sorted_dates), 'TOTAL', hdr_fmt)
+
+        worksheet.set_column(0, 0, 20)
+        for col in range(1, total_cols):
+            worksheet.set_column(col, col, 10)
+
+        date_totals = defaultdict(int)
+        grand_total = 0
+        r = 2
+
+        for uid in sorted_uids:
+            row_total = sum(agent_data[uid].values())
+            worksheet.write(r, 0, agent_names[uid], agent_fmt)
+            for i, d in enumerate(sorted_dates):
+                count = agent_data[uid].get(d, 0)
+                worksheet.write(r, 1 + i, count or '', num_fmt)
+                date_totals[d] += count
+            worksheet.write(r, 1 + len(sorted_dates), row_total, num_fmt)
+            grand_total += row_total
+            r += 1
+
+        worksheet.write(r, 0, 'TOTAL', total_agent_fmt)
+        for i, d in enumerate(sorted_dates):
+            worksheet.write(r, 1 + i, date_totals[d] or '', total_num_fmt)
+        worksheet.write(r, 1 + len(sorted_dates), grand_total, total_num_fmt)

@@ -36,7 +36,21 @@ class OAuthController(http.Controller):
     @fragment_to_query_string
     def add_access_token(self, **kw):
         if kw.get('access_token'):
-            company = request.env.company
+            # Resolve company from state param (set during OAuth initiation) so the
+            # token is always saved to the correct company regardless of session context.
+            state = kw.get('state', '')
+            cid = None
+            if state.startswith('cid:'):
+                try:
+                    cid = int(state.split(':', 1)[1])
+                except (ValueError, IndexError):
+                    pass
+            if cid:
+                company = request.env['res.company'].sudo().browse(cid)
+                if not company.exists():
+                    company = request.env.company
+            else:
+                company = request.env.company
             params = {
                 'client_id': company.crm_fb_app_id,
                 'client_secret': company.crm_fb_app_secret,
@@ -47,7 +61,7 @@ class OAuthController(http.Controller):
             if r.get('error'):
                 _logger.error(r.get('error').get('message'))
             else:
-                company.crm_fb_access_token = r.get('access_token', '')
+                company.sudo().crm_fb_access_token = r.get('access_token', '')
 
         config_action = request.env.ref('crm.crm_config_settings_action')
         url = "/web#view_type=form&model=res.config.settings&action={}".format(
