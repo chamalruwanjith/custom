@@ -124,7 +124,7 @@ class UnitReservation(models.Model):
         if vals.get('reservation_id', 'New') == 'New':
             vals['reservation_id'] = self.env['ir.sequence'].sudo().next_by_code('unit.reservation') or 'New'
 
-        return super(UnitReservation, self.sudo()).create(vals)
+        return super(UnitReservation, self).create(vals)
 
     @api.model
     def write_and_return(self, reservation_id, vals):

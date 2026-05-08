@@ -76,8 +76,15 @@
     <record id="unit_reservation_user_access_rule" model="ir.rule">
         <field name="name">Unit Reservation - User-Specific Access</field>
         <field name="model_id" ref="model_unit_reservation"/>
-        <field name="groups" eval="[(4, ref('vkd_property_management.group_property_management_user_restrict'))]"/>
+        <field name="groups" eval="[(4, ref('vkd_property_management.group_property_management_user'))]"/>
         <field name="domain_force">[('user_id', '=', user.id)]</field>
+    </record>
+
+    <record id="unit_reservation_manager_access_rule" model="ir.rule">
+        <field name="name">Unit Reservation - Manager Full Access</field>
+        <field name="model_id" ref="model_unit_reservation"/>
+        <field name="groups" eval="[(4, ref('vkd_property_management.group_property_management_manager'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
     </record>
 
 </odoo>

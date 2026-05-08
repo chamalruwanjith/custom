@@ -98,23 +98,47 @@ class CRMLeadReport(models.TransientModel):
     def _generate_leads_sheet(self, workbook, leads, colombo_tz):
         worksheet = workbook.add_worksheet("Leads Report")
 
-        header_fmt = workbook.add_format({'bold': True, 'align': 'center', 'bg_color': '#F0F0F0', 'border': 1})
-        data_fmt = workbook.add_format({'align': 'left', 'border': 1})
+        header_fmt = workbook.add_format({'bold': True, 'align': 'center', 'bg_color': '#F0F0F0', 'border': 1, 'text_wrap': True})
+        data_fmt   = workbook.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1})
+        num_fmt    = workbook.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
 
-        headers = ['Lead Name', 'Salesperson', 'Create Date Time', 'Attend Time', 'Response Time (minutes)']
-        for w, col in zip([60, 25, 25, 25, 25], range(5)):
+        headers = [
+            'Created Date', 'Created Time', 'Campaign',
+            'Full Name', 'Email', 'Contact Number', 'WhatsApp Number',
+            'Agent', 'Attended Time', 'Response Time (min)', 'Shift',
+        ]
+        col_widths = [14, 12, 20, 25, 28, 18, 18, 20, 20, 14, 16]
+        for col, (w, h) in enumerate(zip(col_widths, headers)):
             worksheet.set_column(col, col, w)
-        for col, h in enumerate(headers):
             worksheet.write(0, col, h, header_fmt)
+        worksheet.set_row(0, 30)
+
+        def _local(dt):
+            if not dt:
+                return None, None
+            local = pytz.utc.localize(dt).astimezone(colombo_tz)
+            return local.strftime('%m/%d/%Y'), local.strftime('%H:%M:%S')
 
         for row, lead in enumerate(leads, start=1):
-            rt = lead.response_time if lead.response_time else 'N/A'
-            worksheet.write(row, 0, lead.name or 'N/A', data_fmt)
-            worksheet.write(row, 1, lead.user_id.name or 'Unassigned', data_fmt)
-            worksheet.write(row, 2, self._convert_to_local_time(lead.create_date, colombo_tz), data_fmt)
-            worksheet.write(row, 3, self._convert_to_local_time(lead.attend_time, colombo_tz), data_fmt)
-            worksheet.write(row, 4, round(rt, 2) if rt != 'N/A' else 'N/A', data_fmt)
+            c_date, c_time = _local(lead.create_date)
+            a_date, a_time = _local(lead.attend_time)
+            attended_str   = f"{a_date} {a_time}" if a_date else ''
+            rt             = round(lead.response_time, 2) if lead.response_time else ''
+            shift          = lead.lead_allocate_id.shift_id.name if lead.lead_allocate_id and lead.lead_allocate_id.shift_id else ''
 
+            worksheet.write(row, 0,  c_date or '',                          data_fmt)
+            worksheet.write(row, 1,  c_time or '',                          data_fmt)
+            worksheet.write(row, 2,  lead.campaign_id.name or '',           data_fmt)
+            worksheet.write(row, 3,  lead.full_name or '',                  data_fmt)
+            worksheet.write(row, 4,  lead.email_address or '',              data_fmt)
+            worksheet.write(row, 5,  lead.contact_number or '',             data_fmt)
+            worksheet.write(row, 6,  lead.whatsapp_number or '',            data_fmt)
+            worksheet.write(row, 7,  lead.user_id.name or 'Unassigned',    data_fmt)
+            worksheet.write(row, 8,  attended_str,                          data_fmt)
+            worksheet.write(row, 9,  rt,                                    num_fmt)
+            worksheet.write(row, 10, shift,                                 data_fmt)
+
+    # ── Sheet 2: Attendance summary (legacy) ────────────────────────────────
 
     def _generate_summary_sheet(self, workbook, leads):
         worksheet = workbook.add_worksheet("Summary Report")
