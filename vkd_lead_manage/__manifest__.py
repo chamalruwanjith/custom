@@ -26,6 +26,7 @@ Excel Reports – generates a multi-sheet workbook covering lead detail, attenda
         'views/lead_shift_views.xml',
         'views/lead_allocate_views.xml',
         'views/res_users_views.xml',
+        'views/crm_lead_log_views.xml',
         'report/crm_lead_report.xml',
     ],
     'assets': {

@@ -1,0 +1,65 @@
+<odoo>
+
+    <record id="crm_lead_log_view_tree" model="ir.ui.view">
+        <field name="name">mail.tracking.value.crm.lead.log.tree</field>
+        <field name="model">mail.tracking.value</field>
+        <field name="arch" type="xml">
+            <tree string="Lead Activity Log" create="false" edit="false" delete="false"
+                  default_order="message_date desc">
+                <field name="message_date" string="Date"/>
+                <field name="message_record_name" string="Lead"/>
+                <field name="crm_full_name" string="Full Name"/>
+                <field name="message_author_id" string="Changed By"/>
+                <field name="field_label" string="Field Changed"/>
+                <field name="old_value_char" string="Old Value"/>
+                <field name="new_value_char" string="New Value"/>
+                <field name="crm_stage_id" string="Stage"/>
+                <field name="crm_user_id" string="Salesperson"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="crm_lead_log_view_search" model="ir.ui.view">
+        <field name="name">mail.tracking.value.crm.lead.log.search</field>
+        <field name="model">mail.tracking.value</field>
+        <field name="arch" type="xml">
+            <search string="Lead Activity Log">
+                <field name="message_record_name" string="Lead"/>
+                <field name="message_author_id" string="Changed By"/>
+                <field name="field_id" string="Field Changed"/>
+                <field name="crm_stage_id" string="Stage"/>
+                <field name="crm_user_id" string="Salesperson"/>
+                <filter name="today" string="Today"
+                        domain="[('message_date','&gt;=', datetime.datetime.combine(context_today(), datetime.time(0,0,0)))]"/>
+                <separator/>
+                <group expand="0" string="Group By">
+                    <filter name="group_lead"       string="Lead"           context="{'group_by': 'message_record_name'}"/>
+                    <filter name="group_author"     string="Changed By"     context="{'group_by': 'message_author_id'}"/>
+                    <filter name="group_field"      string="Field Changed"  context="{'group_by': 'field_id'}"/>
+                    <filter name="group_stage"      string="Stage"          context="{'group_by': 'crm_stage_id'}"/>
+                    <filter name="group_salesperson" string="Salesperson"   context="{'group_by': 'crm_user_id'}"/>
+                    <filter name="group_date"       string="Date"           context="{'group_by': 'message_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_crm_lead_activity_log" model="ir.actions.act_window">
+        <field name="name">Lead Activity Log</field>
+        <field name="res_model">mail.tracking.value</field>
+        <field name="view_mode">tree</field>
+        <field name="domain">[('mail_message_id.model', '=', 'crm.lead')]</field>
+        <field name="view_id" ref="crm_lead_log_view_tree"/>
+        <field name="search_view_id" ref="crm_lead_log_view_search"/>
+        <field name="context">{}</field>
+    </record>
+
+    <menuitem
+        id="menu_crm_lead_activity_log"
+        name="Lead Activity Log"
+        parent="crm.crm_menu_report"
+        action="action_crm_lead_activity_log"
+        sequence="10"
+        groups="sales_team.group_sale_manager"/>
+
+</odoo>

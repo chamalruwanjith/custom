@@ -4,4 +4,5 @@ from . import lead_shift
 from . import lead_allocate
 from . import lead_allocate_line
 from . import res_users
+from . import mail_tracking_value
 
