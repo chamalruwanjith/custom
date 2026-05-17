@@ -10,12 +10,11 @@ class ResCurrency(models.Model):
                                           string="Bulk Price Lines")
 
     def action_update_bulk_price(self):
-        """Apply bulk price increase to all draft/available units in selected apartments using the latest draft bulk price line."""
+        """Apply bulk price increase and refresh all pricelists."""
         UnitDetails = self.env['unit.details']
         BulkPriceLine = self.env['bulk.price.line']
 
         for currency in self:
-            # Step 1: Get the latest draft bulk price line for this currency
             draft_bulk_line = BulkPriceLine.search([
                 ('currency_id', '=', currency.id),
                 ('bulk_line_status', '=', 'draft')
@@ -27,39 +26,29 @@ class ResCurrency(models.Model):
             bulk_amount = draft_bulk_line.bulk_amount
             apartment_ids = draft_bulk_line.apartment_details_ids.ids
 
-            # Step 2: Find units in draft/available state linked to those apartments
-            domain = [
+            units = UnitDetails.search([
                 ('unit_status', 'in', ['draft', 'available']),
                 ('company_id', '=', self.env.company.id),
                 ('apartment_details_id', 'in', apartment_ids)
-            ]
-            units = UnitDetails.search(domain)
+            ])
 
             if not units:
                 raise UserError("No matching units found for the selected apartments.")
 
-            # Step 3: Update unit_price by adding bulk_amount
             for unit in units:
                 if unit.unit_price:
                     unit.unit_price += bulk_amount
 
-            # Step 4: Mark the bulk price line as done
             draft_bulk_line.bulk_line_status = 'done'
-
-            # Step 5: Call currency-level price update logic
             currency.action_update_unit_price()
 
     def action_update_unit_price(self):
-        """Update unit prices based on current currency rates."""
-        # Filter units by the current company
+        """Update unit fields for the specific currency and refresh pricelists."""
         units = self.env['unit.details'].search([('company_id', '=', self.env.company.id)])
-        latest_rate = self.rate_ids.filtered(lambda r: r.company_id == self.env.company).sorted('name', reverse=True)[
-                      :1]
+        latest_rate_obj = self.rate_ids.filtered(lambda r: r.company_id == self.env.company).sorted('name',
+                                                                                                    reverse=True)[:1]
 
-        if not latest_rate:
-            raise UserError(f"No rate found for currency {self.name} in the current company.")
-
-        company_rate = latest_rate.company_rate
+        company_rate = latest_rate_obj.company_rate if latest_rate_obj else 1.0
 
         for unit in units:
             if self.name == 'AUD':
@@ -67,7 +56,6 @@ class ResCurrency(models.Model):
             elif self.name == 'USD':
                 unit.unit_price_usd = unit.unit_price * company_rate
 
-            # Ensure product_template belongs to the same company
             product_template = self.env['product.template'].search([
                 ('default_code', '=', unit.unit_code),
                 ('company_id', '=', self.env.company.id)
@@ -79,67 +67,57 @@ class ResCurrency(models.Model):
                 elif self.name == 'USD':
                     product_template.unit_price_usd = unit.unit_price_usd
 
-        self.update_price_list()
+        self._sync_all_unit_pricelists()
+
+    @api.model
+    def _sync_all_unit_pricelists(self):
+        """Helper to refresh LKR, USD, and AUD pricelists for the current company."""
+        for curr_name in ['LKR', 'USD', 'AUD']:
+            currency = self.search([('name', '=', curr_name)], limit=1)
+            if currency:
+                currency.update_price_list()
 
     def update_price_list(self):
-        """Create and update price lists for AUD and USD, including products with 0.00 value."""
+        """Syncs product prices into the specific currency pricelist."""
         Pricelist = self.env['product.pricelist']
         PricelistItem = self.env['product.pricelist.item']
         ProductTemplate = self.env['product.template']
 
-        # Filter pricelists and products by the current company
-        aud_pricelist = Pricelist.search([
-            ('name', '=', 'AUD'),
-            ('company_id', '=', self.env.company.id)
-        ], limit=1)
-        usd_pricelist = Pricelist.search([
-            ('name', '=', 'USD'),
-            ('company_id', '=', self.env.company.id)
-        ], limit=1)
-
-        if not aud_pricelist:
-            aud_pricelist = Pricelist.create({
-                'name': 'AUD',
-                'currency_id': self.env['res.currency'].search([('name', '=', 'AUD')], limit=1).id,
-                'company_id': self.env.company.id,
-            })
-
-        if not usd_pricelist:
-            usd_pricelist = Pricelist.create({
-                'name': 'USD',
-                'currency_id': self.env['res.currency'].search([('name', '=', 'USD')], limit=1).id,
-                'company_id': self.env.company.id,
-            })
-
-        products = ProductTemplate.search([('company_id', '=', self.env.company.id)])
-
-        for product in products:
-            # Update or create AUD pricelist item
-            aud_item = PricelistItem.search([
-                ('pricelist_id', '=', aud_pricelist.id),
-                ('product_tmpl_id', '=', product.id)
+        for currency in self:
+            plist = Pricelist.search([
+                ('name', '=', currency.name),
+                ('company_id', '=', self.env.company.id)
             ], limit=1)
 
-            if aud_item:
-                aud_item.fixed_price = product.unit_price_aud or 0.00
-            else:
-                PricelistItem.create({
-                    'pricelist_id': aud_pricelist.id,
-                    'product_tmpl_id': product.id,
-                    'fixed_price': product.unit_price_aud or 0.00,
+            if not plist:
+                plist = Pricelist.create({
+                    'name': currency.name,
+                    'currency_id': currency.id,
+                    'company_id': self.env.company.id,
                 })
 
-            # Update or create USD pricelist item
-            usd_item = PricelistItem.search([
-                ('pricelist_id', '=', usd_pricelist.id),
-                ('product_tmpl_id', '=', product.id)
-            ], limit=1)
+            products = ProductTemplate.search([('company_id', '=', self.env.company.id)])
 
-            if usd_item:
-                usd_item.fixed_price = product.unit_price_usd or 0.00
-            else:
-                PricelistItem.create({
-                    'pricelist_id': usd_pricelist.id,
-                    'product_tmpl_id': product.id,
-                    'fixed_price': product.unit_price_usd or 0.00,
-                })
+            for product in products:
+                if currency.name == 'LKR':
+                    target_price = product.list_price
+                elif currency.name == 'USD':
+                    target_price = getattr(product, 'unit_price_usd', 0.0)
+                elif currency.name == 'AUD':
+                    target_price = getattr(product, 'unit_price_aud', 0.0)
+                else:
+                    target_price = 0.0
+
+                item = PricelistItem.search([
+                    ('pricelist_id', '=', plist.id),
+                    ('product_tmpl_id', '=', product.id)
+                ], limit=1)
+
+                if item:
+                    item.fixed_price = target_price
+                else:
+                    PricelistItem.create({
+                        'pricelist_id': plist.id,
+                        'product_tmpl_id': product.id,
+                        'fixed_price': target_price,
+                    })

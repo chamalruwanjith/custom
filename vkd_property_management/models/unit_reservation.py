@@ -95,6 +95,7 @@ class UnitReservation(models.Model):
     @api.model
     def create(self, vals):
         """Create reservation with hold limit validation and auto-generated sequence number."""
+        portal_user_id = self.env.context.get('portal_user_id')
         sale_agent_id = vals.get('sale_agent_id')
         apartment_id = vals.get('apartment_details_id')
         unit_id = vals.get('unit_details_id')
@@ -124,7 +125,9 @@ class UnitReservation(models.Model):
         if vals.get('reservation_id', 'New') == 'New':
             vals['reservation_id'] = self.env['ir.sequence'].sudo().next_by_code('unit.reservation') or 'New'
 
-        return super(UnitReservation, self).create(vals)
+        # Run as the portal agent user so chatter logs show the actual agent, not Administrator
+        creator = self.with_user(portal_user_id).sudo() if portal_user_id else self
+        return super(UnitReservation, creator).create(vals)
 
     @api.model
     def write_and_return(self, reservation_id, vals):
@@ -135,6 +138,7 @@ class UnitReservation(models.Model):
     def action_unit_hold(self):
         """Place unit on hold with agent limit validation and send hold confirmation email."""
         sudo_self = self.sudo()
+        portal_user_id = self.env.context.get('portal_user_id')
 
         hold_limit = int(sudo_self.env['ir.config_parameter'].get_param('vkd_property_management.hold_unit_limit'))
         current_holds = sudo_self.env['unit.reservation'].search_count([
@@ -153,9 +157,11 @@ class UnitReservation(models.Model):
             error_message = _('This unit is already on hold.')
             raise ValidationError(error_message)
 
-        sudo_self.write({'reservation_status': 'hold', 'reserved_date': fields.Datetime.now()})
-        sudo_self._update_unit_status('hold')
-        sudo_self._update_unit_activity('hold')
+        # Use the portal agent user for write/chatter so logs show the real agent name
+        actor = self.with_user(portal_user_id).sudo() if portal_user_id else sudo_self
+        actor.write({'reservation_status': 'hold', 'reserved_date': fields.Datetime.now()})
+        actor._update_unit_status('hold')
+        actor._update_unit_activity('hold')
 
         template = sudo_self.env.ref('vkd_property_management.sale_agent_hold_email_template', raise_if_not_found=False)
         if template:
@@ -209,6 +215,8 @@ class UnitReservation(models.Model):
         self.ensure_one()
 
         sudo_self = self.sudo()
+        portal_user_id = self.env.context.get('portal_user_id')
+        actor = self.with_user(portal_user_id).sudo() if portal_user_id else sudo_self
 
         _logger.info("Starting reservation process for Reservation ID: %s, Agent: %s",
                      sudo_self.reservation_id, sudo_self.sale_agent_id.full_name)
@@ -274,7 +282,8 @@ class UnitReservation(models.Model):
                 raise UserError(error_msg)
 
             try:
-                sudo_self.write({'reservation_status': 'reserved', 'tentatively_sold_date': fields.Datetime.now()})
+                # Use actor (portal agent user) so chatter shows the real agent name
+                actor.write({'reservation_status': 'reserved', 'tentatively_sold_date': fields.Datetime.now()})
                 _logger.info("Reservation %s status updated to 'reserved'", sudo_self.reservation_id)
             except Exception as e:
                 _logger.error("Failed to update reservation %s status: %s", sudo_self.reservation_id, str(e),
@@ -288,7 +297,7 @@ class UnitReservation(models.Model):
                 _logger.error("Failed to update unit %s status: %s", unit.unit_code, str(e), exc_info=True)
 
             try:
-                sudo_self._update_unit_activity('reserved')
+                actor._update_unit_activity('reserved')
                 _logger.info("Activity record created for unit %s reservation", unit.unit_code)
             except Exception as e:
                 _logger.error("Failed to create activity record for %s: %s", unit.unit_code, str(e), exc_info=True)
