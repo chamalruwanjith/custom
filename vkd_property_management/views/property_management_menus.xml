@@ -44,6 +44,13 @@
               sequence="2"
               groups="group_property_management_manager"/>
 
+    <menuitem id="menu_property_management_pricelist"
+              name="Pricelists"
+              parent="menu_property_management_configuration"
+              action="product.product_pricelist_action2"
+              sequence="3"
+              groups="group_property_management_manager"/>
+
     <menuitem id="menu_sale_agent_teams"
               name="Sale Agent Teams"
               parent="menu_sale_agent"

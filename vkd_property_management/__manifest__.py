@@ -2,7 +2,7 @@
 
 {
     'name': "Property Management",
-    'version': '17.0.1.3.4',
+    'version': '17.0.1.3.5',
     'category': 'Sales',
 
     'summary': """This module offers dynamic property configuration, unit reservations, real-time stock checks,

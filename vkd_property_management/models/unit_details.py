@@ -76,9 +76,8 @@ class UnitDetails(models.Model):
 
     @api.model
     def create(self, vals):
-        """Creates a related product, calculates currencies, and logs initial price history."""
+        """Creates related product, calculates currencies, and updates pricelists."""
         vals['company_id'] = self.env.company.id
-
         record = super(UnitDetails, self).create(vals)
 
         if record.unit_price > 0:
@@ -108,9 +107,7 @@ class UnitDetails(models.Model):
             }
             new_product = product_template.create(product_vals)
 
-            warehouse = self.env['stock.warehouse'].search(
-                [('company_id', '=', record.company_id.id)], limit=1
-            )
+            warehouse = self.env['stock.warehouse'].search([('company_id', '=', record.company_id.id)], limit=1)
             if warehouse:
                 self.env['stock.quant'].with_context(inventory_mode=True).create({
                     'product_id': new_product.product_variant_id.id,
@@ -118,13 +115,15 @@ class UnitDetails(models.Model):
                     'inventory_quantity': 1.0,
                 })._apply_inventory()
 
+        self.env['res.currency']._sync_all_unit_pricelists()
+
         if record.multiple_price_ids:
             record.multiple_price_ids._sync_to_pricelists()
 
         return record
 
     def write(self, vals):
-        """Updates unit, logs price history, calculates currencies, and updates related products."""
+        """Updates unit, logs price history, and synchronizes all pricelists."""
         tracked_fields = ['unit_price', 'unit_price_aud', 'unit_price_usd', 'unit_status']
         if any(field in vals for field in tracked_fields):
             clean_context = dict(self.env.context)
@@ -146,6 +145,7 @@ class UnitDetails(models.Model):
 
         if 'unit_price' in vals:
             self._update_currency_prices()
+            self.env['res.currency']._sync_all_unit_pricelists()
 
         product_template = self.env['product.template']
         for unit in self:
