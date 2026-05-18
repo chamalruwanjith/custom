@@ -14,7 +14,7 @@ Excel Reports – generates a multi-sheet workbook covering lead detail, attenda
     'author': "VK Data ApS",
     'website': "https://vkdata.dk",
     'category': 'CRM',
-    'version': '17.0.1.0.4',
+    'version': '17.0.1.0.5',
 
     'depends': ['base', 'crm', 'sms'],
 
@@ -28,6 +28,7 @@ Excel Reports – generates a multi-sheet workbook covering lead detail, attenda
         'views/res_users_views.xml',
         'views/crm_lead_log_views.xml',
         'report/crm_lead_report.xml',
+        'wizard/lead_allocate_import_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

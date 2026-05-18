@@ -6,3 +6,4 @@ access_lead_shift_manager,access_lead_shift_manager,model_lead_shift,sales_team.
 access_lead_allocate,access_lead_allocate,model_lead_allocate,base.group_user,1,1,1,1
 access_lead_allocate_line,access_lead_allocate_line,model_lead_allocate_line,base.group_user,1,1,1,1
 access_crm_lead_report,access_crm_lead_report,model_crm_lead_report,base.group_user,1,1,1,1
+access_lead_allocate_import,access_lead_allocate_import,model_lead_allocate_import,base.group_user,1,1,1,1

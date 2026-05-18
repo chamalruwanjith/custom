@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="lead_allocate_import_view_form" model="ir.ui.view">
+        <field name="name">lead.allocate.import.view.form</field>
+        <field name="model">lead.allocate.import</field>
+        <field name="arch" type="xml">
+            <form string="Import Lead Allocations">
+                <sheet>
+                    <div class="alert alert-info" role="alert" style="margin-bottom: 16px;">
+                        <p><strong>How to import lead allocations:</strong></p>
+                        <ol style="margin-bottom: 0;">
+                            <li>Click <b>Download Template</b> to get the Excel file.</li>
+                            <li>Fill in your allocation data in the <b>"Import Data"</b> sheet — follow the column instructions.</li>
+                            <li><b>Delete the grey sample rows</b> before saving the file.</li>
+                            <li>Upload the completed file below and click <b>Import</b>.</li>
+                        </ol>
+                    </div>
+                    <group>
+                        <field name="import_file"
+                               filename="import_file_name"
+                               widget="binary"
+                               string="Excel File (.xlsx)"/>
+                        <field name="import_file_name" invisible="1"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_download_template"
+                            type="object"
+                            string="Download Template"
+                            class="btn-secondary"/>
+                    <button name="action_import"
+                            type="object"
+                            string="Import"
+                            class="btn-primary"
+                            confirm="Import the uploaded file? New lead allocation records will be created."/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_lead_allocate_import" model="ir.actions.act_window">
+        <field name="name">Import Lead Allocations</field>
+        <field name="res_model">lead.allocate.import</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem
+        id="menu_lead_allocate_import"
+        name="Import Allocations"
+        parent="crm.menu_crm_config_lead"
+        sequence="5"
+        action="action_lead_allocate_import"
+        groups="sales_team.group_sale_manager"/>
+
+</odoo>
