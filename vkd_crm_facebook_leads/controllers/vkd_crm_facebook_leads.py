@@ -56,7 +56,7 @@ class OAuthController(http.Controller):
                 'client_secret': company.crm_fb_app_secret,
                 'fb_exchange_token': kw.get('access_token')
             }
-            r = requests.get("https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token",
+            r = requests.get("https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token",
                              params=params).json()
             if r.get('error'):
                 _logger.error(r.get('error').get('message'))

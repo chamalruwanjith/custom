@@ -15,7 +15,8 @@ class ResConfigSettings(models.TransientModel):
         auth_url = 'https://www.facebook.com/dialog/oauth?response_type=token&client_id={}&redirect_uri={}&scope={}&state=cid:{}'.format(
             self.crm_fb_app_id,
             redirect_url,
-            'leads_retrieval,pages_manage_ads,pages_read_engagement,ads_management,business_management,pages_show_list',
+            # ads_read is required alongside leads_retrieval to receive ad_name/adset_name/campaign_name on lead objects
+            'leads_retrieval,ads_read,pages_manage_ads,pages_read_engagement,ads_management,business_management,pages_show_list',
             self.company_id.id,
         )
 
@@ -29,7 +30,7 @@ class ResConfigSettings(models.TransientModel):
         return res
 
     def action_get_facebook_pages(self):
-        r = requests.get("https://graph.facebook.com/v19.0/me/accounts",
+        r = requests.get("https://graph.facebook.com/v21.0/me/accounts",
                          params={'access_token': self.crm_fb_access_token}).json()
         if r.get('error'):
             raise ValidationError(r['error']['message'])
@@ -55,7 +56,7 @@ class ResConfigSettings(models.TransientModel):
             self.crm_fb_access_token_state = 'unknown'
             self.crm_fb_access_token_state_message = 'App ID and App Secret are required to debug access token'
             return
-        r = requests.get("https://graph.facebook.com/v19.0/debug_token", params={'input_token': self.crm_fb_access_token,
+        r = requests.get("https://graph.facebook.com/v21.0/debug_token", params={'input_token': self.crm_fb_access_token,
                                                                                 'access_token': '|'.join(
                                                                                     [self.crm_fb_app_id,
                                                                                      self.crm_fb_app_secret])}).json()

@@ -32,7 +32,7 @@ class CrmFacebookForm(models.Model):
 
     def get_fields(self):
         self.fields_mapping_ids.unlink()
-        r = requests.get("https://graph.facebook.com/v19.0/" + self.facebook_form_id,
+        r = requests.get("https://graph.facebook.com/v21.0/" + self.facebook_form_id,
                          params={'access_token': self.access_token, 'fields': 'questions'}).json()
         if r.get('error'):
             raise ValidationError(r['error']['message'])

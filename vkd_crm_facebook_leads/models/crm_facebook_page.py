@@ -47,7 +47,7 @@ class CrmFacebookPage(models.Model):
         return
 
     def get_forms(self):
-        r = requests.get("https://graph.facebook.com/v19.0/" + self.name + "/leadgen_forms",
+        r = requests.get("https://graph.facebook.com/v21.0/" + self.name + "/leadgen_forms",
                          params={'access_token': self.access_token}).json()
         if r.get('error'):
             raise ValidationError(r['error']['message'])

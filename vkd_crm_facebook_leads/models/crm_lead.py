@@ -63,7 +63,8 @@ class CrmLead(models.Model):
         if not ad:
             ad = self.env['utm.medium'].create({
                 'facebook_ad_id': ad_id,
-                'name': lead['ad_name'],
+                # ads_management + ads_read required; fall back to ID when name is absent (organic lead or missing scope)
+                'name': lead.get('ad_name') or ad_id,
             })
         ad_cache[ad_id] = ad.id
         return ad.id
@@ -80,7 +81,8 @@ class CrmLead(models.Model):
         if not adset:
             adset = self.env['utm.adset'].create({
                 'facebook_adset_id': adset_id,
-                'name': lead['adset_name'],
+                # ads_management + ads_read required; fall back to ID when name is absent
+                'name': lead.get('adset_name') or adset_id,
             })
         adset_cache[adset_id] = adset.id
         return adset.id
@@ -97,7 +99,8 @@ class CrmLead(models.Model):
         if not campaign:
             campaign = self.env['utm.campaign'].create({
                 'facebook_campaign_id': campaign_id,
-                'name': lead['campaign_name'],
+                # ads_management + ads_read required; fall back to ID when name is absent
+                'name': lead.get('campaign_name') or campaign_id,
             })
         campaign_cache[campaign_id] = campaign.id
         return campaign.id
@@ -125,7 +128,7 @@ class CrmLead(models.Model):
 
         vals.update({
             'facebook_lead_id': lead['id'],
-            'facebook_is_organic': lead['is_organic'],
+            'facebook_is_organic': lead.get('is_organic', False),
             'name': self.get_opportunity_name(vals, lead, form),
             'description': "\n".join(notes),
             'team_id': form.team_id.id if form.team_id else None,
@@ -135,6 +138,7 @@ class CrmLead(models.Model):
             'medium_id': form.medium_id.id or self.get_ad(lead, ad_cache),
             'user_id': assigned_user.id if assigned_user else None,
             'facebook_adset_id': self.get_adset(lead, adset_cache),
+            'adset_name': lead.get('adset_name', ''),
             'facebook_form_id': form.id,
             'facebook_date_create': lead['created_time'].split('+')[0].replace('T', ' '),
             'lead_allocate_id': lead_allocate.id if lead_allocate else None,
@@ -207,15 +211,31 @@ class CrmLead(models.Model):
         campaign_cache = {}
 
         leads_to_create = []
+        form_campaign_id = None
+        form_medium_id = None
         for lead in r['data']:
             lead = self.process_lead_field_data(lead)
             if not self.search(
                     [('facebook_lead_id', '=', lead.get('id')), '|', ('active', '=', True), ('active', '=', False)],
                     limit=1):
                 leads_to_create.append(self.prepare_lead_creation(lead, form, ad_cache, adset_cache, campaign_cache))
+            # Capture campaign/medium from first lead that has them
+            if form_campaign_id is None and lead.get('campaign_id'):
+                form_campaign_id = self.get_campaign(lead, campaign_cache)
+            if form_medium_id is None and lead.get('ad_id'):
+                form_medium_id = self.get_ad(lead, ad_cache)
 
         if leads_to_create:
             self.create(leads_to_create)
+
+        # Auto-populate form's campaign/medium from Facebook data if not already set
+        form_updates = {}
+        if not form.campaign_id and form_campaign_id:
+            form_updates['campaign_id'] = form_campaign_id
+        if not form.medium_id and form_medium_id:
+            form_updates['medium_id'] = form_medium_id
+        if form_updates:
+            form.sudo().write(form_updates)
 
         if r.get('paging') and r['paging'].get('next'):
             _logger.info('Fetching a new page in Form: %s' % form.name)
@@ -229,7 +249,7 @@ class CrmLead(models.Model):
 
     @api.model
     def get_facebook_leads(self):
-        fb_api = "https://graph.facebook.com/v19.0/"
+        fb_api = "https://graph.facebook.com/v21.0/"
         for form in self.env['crm.facebook.form'].sudo().search([]):
             form_status = self.get_form_status(form.facebook_form_id, form.access_token)
             if form_status != 'ACTIVE':
@@ -248,6 +268,11 @@ class CrmLead(models.Model):
                         int(form.date_retrieval.timestamp())),
                 })
             r = requests.get(fb_api + form.facebook_form_id + "/leads", params=params).json()
+            _logger.info(
+                'Lead payload for form %s — first lead keys: %s',
+                form.name,
+                list(r['data'][0].keys()) if r.get('data') else r.get('error', '(empty response)'),
+            )
             if r.get('error'):
                 _logger.error('Facebook API error for form %s: %s' % (form.name, r['error']['message']))
                 continue
@@ -258,7 +283,7 @@ class CrmLead(models.Model):
         _logger.info('Fetch of leads has ended')
 
     def get_form_status(self, form_id, access_token):
-        fb_api = "https://graph.facebook.com/v19.0/"
+        fb_api = "https://graph.facebook.com/v21.0/"
         params = {
             'access_token': access_token,
             'fields': 'status'
