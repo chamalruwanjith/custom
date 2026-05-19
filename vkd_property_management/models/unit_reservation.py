@@ -125,7 +125,6 @@ class UnitReservation(models.Model):
         if vals.get('reservation_id', 'New') == 'New':
             vals['reservation_id'] = self.env['ir.sequence'].sudo().next_by_code('unit.reservation') or 'New'
 
-        # Run as the portal agent user so chatter logs show the actual agent, not Administrator
         creator = self.with_user(portal_user_id).sudo() if portal_user_id else self
         return super(UnitReservation, creator).create(vals)
 
@@ -157,7 +156,6 @@ class UnitReservation(models.Model):
             error_message = _('This unit is already on hold.')
             raise ValidationError(error_message)
 
-        # Use the portal agent user for write/chatter so logs show the real agent name
         actor = self.with_user(portal_user_id).sudo() if portal_user_id else sudo_self
         actor.write({'reservation_status': 'hold', 'reserved_date': fields.Datetime.now()})
         actor._update_unit_status('hold')
@@ -282,7 +280,6 @@ class UnitReservation(models.Model):
                 raise UserError(error_msg)
 
             try:
-                # Use actor (portal agent user) so chatter shows the real agent name
                 actor.write({'reservation_status': 'reserved', 'tentatively_sold_date': fields.Datetime.now()})
                 _logger.info("Reservation %s status updated to 'reserved'", sudo_self.reservation_id)
             except Exception as e:

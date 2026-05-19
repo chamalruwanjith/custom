@@ -70,18 +70,21 @@ class ResCurrency(models.Model):
         self._sync_all_unit_pricelists()
 
     @api.model
-    def _sync_all_unit_pricelists(self):
-        """Helper to refresh LKR, USD, and AUD pricelists for the current company."""
+    def _sync_all_unit_pricelists(self, products=None):
+        """Helper to refresh LKR, USD, and AUD pricelists for the provided products."""
         for curr_name in ['LKR', 'USD', 'AUD']:
             currency = self.search([('name', '=', curr_name)], limit=1)
             if currency:
-                currency.update_price_list()
+                currency.update_price_list(products=products)
 
-    def update_price_list(self):
+    def update_price_list(self, products=None):
         """Syncs product prices into the specific currency pricelist."""
         Pricelist = self.env['product.pricelist']
         PricelistItem = self.env['product.pricelist.item']
         ProductTemplate = self.env['product.template']
+
+        if not products:
+            products = ProductTemplate.search([('company_id', '=', self.env.company.id)])
 
         for currency in self:
             plist = Pricelist.search([
@@ -95,8 +98,6 @@ class ResCurrency(models.Model):
                     'currency_id': currency.id,
                     'company_id': self.env.company.id,
                 })
-
-            products = ProductTemplate.search([('company_id', '=', self.env.company.id)])
 
             for product in products:
                 if currency.name == 'LKR':
@@ -114,10 +115,12 @@ class ResCurrency(models.Model):
                 ], limit=1)
 
                 if item:
-                    item.fixed_price = target_price
+                    item.write({'fixed_price': target_price})
                 else:
                     PricelistItem.create({
                         'pricelist_id': plist.id,
                         'product_tmpl_id': product.id,
                         'fixed_price': target_price,
+                        'applied_on': '1_product',
+                        'compute_price': 'fixed',
                     })

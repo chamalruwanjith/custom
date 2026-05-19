@@ -23,23 +23,29 @@ class UnitDetails(models.Model):
     number_of_rooms = fields.Integer(string='Number of Rooms')
     number_of_bathrooms = fields.Integer(string='Number of Bathrooms')
     facing_direction = fields.Selection([
-        ('north', 'North'),
-        ('northeast', 'Northeast'),
-        ('east', 'East'),
-        ('southeast', 'Southeast'),
-        ('south', 'South'),
-        ('southwest', 'Southwest'),
-        ('west', 'West'),
-        ('northwest', 'Northwest'),
-        ('north_northeast', 'North-Northeast'),
-        ('east_northeast', 'East-Northeast'),
-        ('east_southeast', 'East-Southeast'),
-        ('south_southeast', 'South-Southeast'),
-        ('south_southwest', 'South-Southwest'),
-        ('west_southwest', 'West-Southwest'),
-        ('west_northwest', 'West-Northwest'),
-        ('north_northwest', 'North-Northwest'),
-    ], string="Facing Direction")
+        ('non_view', 'Non View'),
+        ('with_view', 'View'),
+        ('paddy_view', 'Paddy View'),
+        ('inside_view', 'Inside View'),
+        ('lake_view', 'Lake View'),
+        ('sea_view', 'Sea View'),
+        ('garden_view', 'Garden View'),
+        ('pool_view', 'Pool View'),
+        ('city_view', 'City View'),
+        ('mountain_view', 'Mountain View'),
+        ('river_view', 'River View'),
+        ('park_view', 'Park View'),
+        ('courtyard_view', 'Courtyard View'),
+        ('street_view', 'Street View'),
+        ('skyline_view', 'Skyline View'),
+        ('beach_view', 'Beach View'),
+        ('forest_view', 'Forest View'),
+        ('golf_view', 'Golf Course View'),
+        ('harbor_view', 'Harbor View'),
+        ('sunset_view', 'Sunset View'),
+        ('airport_view', 'Airport View'),
+        ('greenery_view', 'Greenery View'),
+    ], string="Facing View")
     special_note = fields.Html(string="Special Notes")
     unit_status = fields.Selection([
         ('draft', 'Draft'),
@@ -74,53 +80,62 @@ class UnitDetails(models.Model):
     total_area_uom_id = fields.Many2one(comodel_name='uom.uom', string="Unit of Measure")
     garden_area = fields.Float(string='Garden Area(Sqft)')
 
-    @api.model
-    def create(self, vals):
-        """Creates related product, calculates currencies, and updates pricelists."""
-        vals['company_id'] = self.env.company.id
-        record = super(UnitDetails, self).create(vals)
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            vals['company_id'] = self.env.company.id
 
-        if record.unit_price > 0:
-            record._update_currency_prices()
+        records = super(UnitDetails, self).create(vals_list)
 
-        if record.unit_price > 0:
-            self.env['unit.price.history'].create({
-                'unit_details_id': record.id,
-                'price_type': 'Base Price',
-                'old_price': 0.0,
-                'new_price': record.unit_price,
-            })
+        product_template_env = self.env['product.template']
+        warehouse = self.env['stock.warehouse'].search([('company_id', '=', self.env.company.id)], limit=1)
 
-        product_template = self.env['product.template']
-        existing_product = product_template.search([('default_code', '=', record.unit_code)], limit=1)
+        batch_products = product_template_env.browse()
 
-        if not existing_product:
-            product_vals = {
-                'name': record.unit_code,
-                'default_code': record.unit_code,
-                'type': 'product',
-                'list_price': record.unit_price,
-                'unit_price_aud': record.unit_price_aud,
-                'unit_price_usd': record.unit_price_usd,
-                'categ_id': self.env.ref('product.product_category_all').id,
-                'company_id': record.company_id.id,
-            }
-            new_product = product_template.create(product_vals)
+        for record in records:
+            if record.unit_price > 0:
+                record._update_currency_prices()
 
-            warehouse = self.env['stock.warehouse'].search([('company_id', '=', record.company_id.id)], limit=1)
-            if warehouse:
-                self.env['stock.quant'].with_context(inventory_mode=True).create({
-                    'product_id': new_product.product_variant_id.id,
-                    'location_id': warehouse.lot_stock_id.id,
-                    'inventory_quantity': 1.0,
-                })._apply_inventory()
+                self.env['unit.price.history'].create({
+                    'unit_details_id': record.id,
+                    'price_type': 'Base Price',
+                    'old_price': 0.0,
+                    'new_price': record.unit_price,
+                })
 
-        self.env['res.currency']._sync_all_unit_pricelists()
+            existing_product = product_template_env.search([('default_code', '=', record.unit_code)], limit=1)
 
-        if record.multiple_price_ids:
-            record.multiple_price_ids._sync_to_pricelists()
+            if not existing_product:
+                product_vals = {
+                    'name': record.unit_code,
+                    'default_code': record.unit_code,
+                    'type': 'product',
+                    'list_price': record.unit_price,
+                    'unit_price_aud': record.unit_price_aud,
+                    'unit_price_usd': record.unit_price_usd,
+                    'categ_id': self.env.ref('product.product_category_all').id,
+                    'company_id': record.company_id.id,
+                }
+                new_product = product_template_env.create(product_vals)
+                batch_products += new_product
 
-        return record
+                if warehouse:
+                    self.env['stock.quant'].with_context(inventory_mode=True).create({
+                        'product_id': new_product.product_variant_id.id,
+                        'location_id': warehouse.lot_stock_id.id,
+                        'inventory_quantity': 1.0,
+                    })._apply_inventory()
+            else:
+                batch_products += existing_product
+
+        if batch_products:
+            self.env['res.currency']._sync_all_unit_pricelists(products=batch_products)
+
+        for record in records:
+            if record.multiple_price_ids:
+                record.multiple_price_ids._sync_to_pricelists()
+
+        return records
 
     def write(self, vals):
         """Updates unit, logs price history, and synchronizes all pricelists."""
@@ -209,7 +224,7 @@ class UnitDetails(models.Model):
         """Generates unit code based on type, floor, or apartment details,
         using the last two characters of unit_name with 'U' prefix."""
         for record in self:
-            unit_suffix = f"U{record.unit_name[-2:]}" if record.unit_name else ''
+            unit_suffix = f"{record.unit_name[-2:]}" if record.unit_name else ''
 
             if record.unit_type == 'unit':
                 if record.floor_details_id:
