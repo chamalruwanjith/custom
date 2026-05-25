@@ -1,4 +1,5 @@
 import logging
+import re
 import requests
 
 from odoo import models, fields, api
@@ -105,6 +106,76 @@ class CrmLead(models.Model):
         campaign_cache[campaign_id] = campaign.id
         return campaign.id
 
+    def _parse_adset_name(self, adset_name):
+        """
+        Parse project, lead type, source country, and digital team from the adset name.
+
+        Naming convention (segments delimited by ' - '):
+            {PROJECT} - {COUNTRY} - {TYPE} - {D0X} - {DATE}
+        Example: PORT CITY - LOCAL - LEAD - D01 - 19/MAY
+
+        Recognition order:
+          1. Digital team — token matching D0*\\d+  (D01, D02, D001, D002)
+          2. Country      — exact match on res.country.name; LOCAL -> Sri Lanka
+          3. Lead type    — exact match on crm.lead.type.name  (NC, WB, LEAD …)
+          4. Project      — substring match on apartment.details.name to handle
+                            names like "STANFORD AVENUE - MALABE" vs token "STANFORD AVENUE"
+        """
+        if not adset_name:
+            return {}
+
+        result = {}
+        tokens = [t.strip() for t in adset_name.split(' - ') if t.strip()]
+        # Remove date tokens like "19/MAY" or "01/JAN"
+        tokens = [t for t in tokens if not re.match(r'^\d{1,2}/[A-Za-z]+$', t)]
+        unmatched = list(tokens)
+
+        # 1. Digital team — D01 / D02 / D001 / D002
+        for token in list(unmatched):
+            if re.match(r'^D0*\d+$', token, re.IGNORECASE):
+                team = self.env['crm.team'].search([('name', 'ilike', token)], limit=1)
+                if team:
+                    result['digital_team_id'] = team.id
+                unmatched.remove(token)
+                break
+
+        # 2. Country — exact case-insensitive match; LOCAL = Sri Lanka (domestic market)
+        for token in list(unmatched):
+            if token.upper() == 'LOCAL':
+                country = self.env['res.country'].search(
+                    ['|', ('name', '=ilike', 'Sri Lanka'), ('name', '=ilike', 'Local')], limit=1
+                )
+                if country:
+                    result['source_country_id'] = country.id
+                unmatched.remove(token)
+                break
+            country = self.env['res.country'].search([('name', '=ilike', token)], limit=1)
+            if country:
+                result['source_country_id'] = country.id
+                unmatched.remove(token)
+                break
+
+        # 3. Lead type — exact case-insensitive (NC, WB, LEAD …)
+        for token in list(unmatched):
+            lead_type = self.env['crm.lead.type'].search([('name', '=ilike', token)], limit=1)
+            if lead_type:
+                result['lead_type_id'] = lead_type.id
+                unmatched.remove(token)
+                break
+
+        # 4. Project — substring match so "STANFORD AVENUE" hits "STANFORD AVENUE - MALABE"
+        for token in list(unmatched):
+            project = self.env['apartment.details'].search([('name', 'ilike', token)], limit=1)
+            if project:
+                result['project_id'] = project.id
+                unmatched.remove(token)
+                break
+
+        if unmatched:
+            _logger.debug('Adset "%s": unmatched tokens %s', adset_name, unmatched)
+
+        return result
+
     def _find_lead_allocate(self, lead_create_time, form):
         domain = [
             ('from_time', '<=', lead_create_time),
@@ -126,6 +197,10 @@ class CrmLead(models.Model):
         if lead_allocate:
             assigned_user = lead_allocate.get_next_user()
 
+        # Parse project / country / lead type / digital team from the adset name;
+        # fall back to form-level defaults when a token is absent or unrecognised
+        parsed = self._parse_adset_name(lead.get('adset_name', ''))
+
         vals.update({
             'facebook_lead_id': lead['id'],
             'facebook_is_organic': lead.get('is_organic', False),
@@ -142,10 +217,10 @@ class CrmLead(models.Model):
             'facebook_form_id': form.id,
             'facebook_date_create': lead['created_time'].split('+')[0].replace('T', ' '),
             'lead_allocate_id': lead_allocate.id if lead_allocate else None,
-            'project_id': form.project_id.id or None,
-            'lead_type_id': form.lead_type_id.id or None,
-            'source_country_id': form.country_id.id or None,
-            'digital_team_id': form.digital_team_id.id or None,
+            'project_id': parsed.get('project_id') or form.project_id.id or None,
+            'lead_type_id': parsed.get('lead_type_id') or form.lead_type_id.id or None,
+            'source_country_id': parsed.get('source_country_id') or form.country_id.id or None,
+            'digital_team_id': parsed.get('digital_team_id') or form.digital_team_id.id or None,
         })
         return vals
 
