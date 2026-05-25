@@ -19,9 +19,11 @@ patch(crmKanbanView.Controller.prototype, {
 
         onWillUnmount(() => {
             this.stopAutoRefresh();
+            this._cleanupVisibilityListener();
         });
 
-        // Handle page visibility changes
+        // Pause refresh when tab is hidden, resume when visible again.
+        // Defined once in setup and never nullified so the listener stays registered.
         this.visibilityChangeHandler = () => {
             if (document.hidden) {
                 this.stopAutoRefresh();
@@ -39,7 +41,6 @@ patch(crmKanbanView.Controller.prototype, {
         this.refreshIntervalId = setInterval(() => {
             this.performRefresh();
         }, this.refreshIntervalTime);
-
     },
 
     stopAutoRefresh() {
@@ -47,8 +48,12 @@ patch(crmKanbanView.Controller.prototype, {
             clearInterval(this.refreshIntervalId);
             this.refreshIntervalId = null;
         }
+        // Do NOT remove or nullify visibilityChangeHandler here —
+        // it must stay registered so tab-show can restart the interval.
+        // It is only removed in onWillUnmount via _cleanupVisibilityListener().
+    },
 
-        // Clean up visibility change listener
+    _cleanupVisibilityListener() {
         if (this.visibilityChangeHandler) {
             document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
             this.visibilityChangeHandler = null;
@@ -57,31 +62,17 @@ patch(crmKanbanView.Controller.prototype, {
 
     async performRefresh() {
         try {
-            // Check if model and required methods exist
             if (!this.model || !this.model.root || typeof this.model.root.load !== 'function') {
                 return;
             }
+            // model.root.load() updates reactive state; OWL re-renders automatically.
+            // Do NOT call this.render() here — it causes a double-render every cycle
+            // which accumulates unreleased DOM nodes and leads to OOM crashes.
             await this.model.root.load();
-
-            // Update progress bars if they exist
-            if (this.progressBarState) {
-                try {
-                    if (typeof this.progressBarState.updateCounts === 'function') {
-                        this.progressBarState.updateCounts();
-                    }
-                } catch (progressError) {
-                }
-            }
-
-            // Re-render the view
-            if (typeof this.render === 'function') {
-                this.render(true);
-            } else {
-                console.warn("Render method not available");
-            }
-
         } catch (error) {
             console.warn('Auto-refresh failed:', error.message || error);
         }
     },
 });
+
+console.log("CRM Kanban Controller patched with Owl lifecycle auto-refresh");

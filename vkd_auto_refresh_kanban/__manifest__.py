@@ -7,7 +7,7 @@
     """,
     'author': 'VK DATA ApS',
     'website': 'https://vkdata.dk/',
-    'version': '17.0.1.0.1',
+    'version': '17.0.1.0.2',
     'license': 'OPL-1',
     'depends': ["web", 'crm'],
     'assets': {
