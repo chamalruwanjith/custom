@@ -165,7 +165,7 @@ class CrmLead(models.Model):
 
         # 4. Project — substring match so "STANFORD AVENUE" hits "STANFORD AVENUE - MALABE"
         for token in list(unmatched):
-            project = self.env['apartment.details'].search([('name', 'ilike', token)], limit=1)
+            project = self.env['apartment.details'].search([('apartment_name', 'ilike', token)], limit=1)
             if project:
                 result['project_id'] = project.id
                 unmatched.remove(token)
