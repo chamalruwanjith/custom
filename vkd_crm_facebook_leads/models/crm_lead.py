@@ -116,7 +116,7 @@ class CrmLead(models.Model):
 
         Recognition order:
           1. Digital team — token matching D0*\\d+  (D01, D02, D001, D002)
-          2. Country      — exact match on res.country.name; LOCAL -> Sri Lanka
+          2. Country      — exact match on res.country.code (ISO 3166-1 alpha-2); LOCAL -> LK (Sri Lanka)
           3. Lead type    — exact match on crm.lead.type.name  (NC, WB, LEAD …)
           4. Project      — substring match on apartment.details.name to handle
                             names like "STANFORD AVENUE - MALABE" vs token "STANFORD AVENUE"
@@ -139,29 +139,32 @@ class CrmLead(models.Model):
                 unmatched.remove(token)
                 break
 
-        # 2. Country — exact case-insensitive match; LOCAL = Sri Lanka (domestic market)
+        # 2. Country — match on res.country.code (ISO alpha-2); LOCAL = LK (Sri Lanka)
         for token in list(unmatched):
             if token.upper() == 'LOCAL':
-                country = self.env['res.country'].search(
-                    ['|', ('name', '=ilike', 'Sri Lanka'), ('name', '=ilike', 'Local')], limit=1
-                )
+                country = self.env['res.country'].search([('code', '=', 'LK')], limit=1)
                 if country:
                     result['source_country_id'] = country.id
                 unmatched.remove(token)
                 break
-            country = self.env['res.country'].search([('name', '=ilike', token)], limit=1)
+            country = self.env['res.country'].search([('code', '=ilike', token)], limit=1)
             if country:
                 result['source_country_id'] = country.id
                 unmatched.remove(token)
                 break
 
-        # 3. Lead type — exact case-insensitive (NC, WB, LEAD …)
-        for token in list(unmatched):
-            lead_type = self.env['crm.lead.type'].search([('name', '=ilike', token)], limit=1)
+        # 3. Lead type — only two values exist: WB and NC.
+        #    If "WB" token is present use it; otherwise default to NC.
+        wb_token = next((t for t in unmatched if t.upper() == 'WB'), None)
+        if wb_token:
+            lead_type = self.env['crm.lead.type'].search([('name', '=ilike', 'WB')], limit=1)
             if lead_type:
                 result['lead_type_id'] = lead_type.id
-                unmatched.remove(token)
-                break
+            unmatched.remove(wb_token)
+        else:
+            lead_type = self.env['crm.lead.type'].search([('name', '=ilike', 'NC')], limit=1)
+            if lead_type:
+                result['lead_type_id'] = lead_type.id
 
         # 4. Project — substring match so "STANFORD AVENUE" hits "STANFORD AVENUE - MALABE"
         for token in list(unmatched):
