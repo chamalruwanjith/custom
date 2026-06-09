@@ -7,6 +7,16 @@ from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
+_REGION_TOKENS = {
+    'ASIA': 'asia',
+    'OCEANIA': 'oceania',
+    'EUROPE': 'europe',
+    'AFRICA': 'africa',
+    'NORTH AMERICA': 'north_america',
+    'SOUTH AMERICA': 'south_america',
+    'ANTARCTICA': 'antarctica',
+}
+
 
 class CrmLead(models.Model):
     _inherit = 'crm.lead'
@@ -44,7 +54,15 @@ class CrmLead(models.Model):
 
     project_id = fields.Many2one('apartment.details', string='Project', readonly=True)
     lead_type_id = fields.Many2one('crm.lead.type', string='Lead Type', readonly=True)
-    source_country_id = fields.Many2one('res.country', string='Source Country', readonly=True)
+    source_region = fields.Selection([
+        ('asia', 'Asia'),
+        ('oceania', 'Oceania'),
+        ('europe', 'Europe'),
+        ('africa', 'Africa'),
+        ('north_america', 'North America'),
+        ('south_america', 'South America'),
+        ('antarctica', 'Antarctica'),
+    ], string='Source Region', readonly=True)
     digital_team_id = fields.Many2one('crm.team', string='Digital Team', readonly=True)
 
     _sql_constraints = [
@@ -116,10 +134,10 @@ class CrmLead(models.Model):
 
         Recognition order:
           1. Digital team — token matching D0*\\d+  (D01, D02, D001, D002)
-          2. Country      — exact match on res.country.code (ISO 3166-1 alpha-2); LOCAL -> LK (Sri Lanka)
-          3. Lead type    — exact match on crm.lead.type.name  (NC, WB, LEAD …)
-          4. Project      — substring match on apartment.details.name to handle
-                            names like "STANFORD AVENUE - MALABE" vs token "STANFORD AVENUE"
+          2. Region       — token matched against _REGION_TOKENS (Asia, Europe, North America …)
+          3. Lead type    — WB if token present, otherwise defaults to NC
+          4. Project      — substring match on apartment.details.apartment_name
+                            to handle names like "STANFORD AVENUE - MALABE" vs token "STANFORD AVENUE"
         """
         if not adset_name:
             return {}
@@ -139,17 +157,11 @@ class CrmLead(models.Model):
                 unmatched.remove(token)
                 break
 
-        # 2. Country — match on res.country.code (ISO alpha-2); LOCAL = LK (Sri Lanka)
+        # 2. Region — match token against the fixed region map
         for token in list(unmatched):
-            if token.upper() == 'LOCAL':
-                country = self.env['res.country'].search([('code', '=', 'LK')], limit=1)
-                if country:
-                    result['source_country_id'] = country.id
-                unmatched.remove(token)
-                break
-            country = self.env['res.country'].search([('code', '=ilike', token)], limit=1)
-            if country:
-                result['source_country_id'] = country.id
+            region_key = _REGION_TOKENS.get(token.upper())
+            if region_key:
+                result['source_region'] = region_key
                 unmatched.remove(token)
                 break
 
@@ -222,7 +234,7 @@ class CrmLead(models.Model):
             'lead_allocate_id': lead_allocate.id if lead_allocate else None,
             'project_id': parsed.get('project_id') or form.project_id.id or None,
             'lead_type_id': parsed.get('lead_type_id') or form.lead_type_id.id or None,
-            'source_country_id': parsed.get('source_country_id') or form.country_id.id or None,
+            'source_region': parsed.get('source_region'),
             'digital_team_id': parsed.get('digital_team_id') or form.digital_team_id.id or None,
         })
         return vals

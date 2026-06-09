@@ -19,7 +19,7 @@
                     <group name="lead_classification" string="Lead Classification">
                         <field name="project_id"/>
                         <field name="lead_type_id"/>
-                        <field name="source_country_id"/>
+                        <field name="source_region"/>
                         <field name="digital_team_id"/>
                     </group>
                 </page>
