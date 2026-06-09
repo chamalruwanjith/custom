@@ -1,5 +1,6 @@
 import logging
 import re
+import traceback
 import requests
 
 from odoo import models, fields, api
@@ -9,6 +10,7 @@ _logger = logging.getLogger(__name__)
 
 _REGION_TOKENS = {
     'ASIA': 'asia',
+    'LOCAL': 'asia',  # LOCAL = Sri Lanka = Asia
     'OCEANIA': 'oceania',
     'EUROPE': 'europe',
     'AFRICA': 'africa',
@@ -295,47 +297,98 @@ class CrmLead(models.Model):
         if not r.get('data'):
             return
 
-        # Caching to avoid repeated database queries
+        # Per-page caches — evicted on savepoint failure to avoid stale IDs
         ad_cache = {}
         adset_cache = {}
         campaign_cache = {}
-
-        leads_to_create = []
         form_campaign_id = None
         form_medium_id = None
-        for lead in r['data']:
-            lead = self.process_lead_field_data(lead)
-            if not self.search(
-                    [('facebook_lead_id', '=', lead.get('id')), '|', ('active', '=', True), ('active', '=', False)],
-                    limit=1):
-                leads_to_create.append(self.prepare_lead_creation(lead, form, ad_cache, adset_cache, campaign_cache))
-            # Capture campaign/medium from first lead that has them
-            if form_campaign_id is None and lead.get('campaign_id'):
-                form_campaign_id = self.get_campaign(lead, campaign_cache)
-            if form_medium_id is None and lead.get('ad_id'):
-                form_medium_id = self.get_ad(lead, ad_cache)
 
-        if leads_to_create:
-            self.create(leads_to_create)
+        for lead_raw in r['data']:
+            lead_id = lead_raw.get('id', 'unknown')
+            lead = None
+            # Snapshot cache key sets so we can evict rolled-back entries on failure
+            ad_keys_before = set(ad_cache)
+            adset_keys_before = set(adset_cache)
+            campaign_keys_before = set(campaign_cache)
 
-        # Auto-populate form's campaign/medium from Facebook data if not already set
+            try:
+                with self.env.cr.savepoint():
+                    lead = self.process_lead_field_data(lead_raw)
+                    if self.search(
+                        [('facebook_lead_id', '=', lead.get('id')), '|', ('active', '=', True), ('active', '=', False)],
+                        limit=1,
+                    ):
+                        continue
+                    vals = self.prepare_lead_creation(lead, form, ad_cache, adset_cache, campaign_cache)
+                    self.create(vals)
+            except Exception:
+                _logger.exception(
+                    'Failed to process lead %s in form %s (form_id=%s, company=%s)',
+                    lead_id, form.name, form.facebook_form_id, form.company_id.name or 'N/A',
+                )
+                # Evict cache entries added during this failed savepoint — they point to rolled-back rows
+                for k in set(ad_cache) - ad_keys_before:
+                    del ad_cache[k]
+                for k in set(adset_cache) - adset_keys_before:
+                    del adset_cache[k]
+                for k in set(campaign_cache) - campaign_keys_before:
+                    del campaign_cache[k]
+                try:
+                    data = lead or lead_raw or {}
+                    self.env['crm.facebook.lead.error'].sudo().create({
+                        'facebook_lead_id': lead_id,
+                        'form_id': form.id,
+                        'adset_name': data.get('adset_name') or '',
+                        'error': traceback.format_exc(),
+                        'lead_data': str(data),
+                    })
+                except Exception:
+                    _logger.exception('Could not save error record for lead %s', lead_id)
+                continue
+
+            # Auto-populate outside the savepoint so a failure here cannot roll back
+            # the already-committed lead record
+            if lead is not None:
+                try:
+                    if form_campaign_id is None and lead.get('campaign_id'):
+                        form_campaign_id = self.get_campaign(lead, campaign_cache)
+                    if form_medium_id is None and lead.get('ad_id'):
+                        form_medium_id = self.get_ad(lead, ad_cache)
+                except Exception:
+                    _logger.exception(
+                        'Failed to resolve campaign/ad for auto-populate on lead %s, form %s',
+                        lead_id, form.name,
+                    )
+
         form_updates = {}
         if not form.campaign_id and form_campaign_id:
             form_updates['campaign_id'] = form_campaign_id
         if not form.medium_id and form_medium_id:
             form_updates['medium_id'] = form_medium_id
         if form_updates:
-            form.sudo().write(form_updates)
+            try:
+                form.sudo().write(form_updates)
+            except Exception:
+                _logger.exception('Failed to update campaign/medium on form %s', form.name)
 
         if r.get('paging') and r['paging'].get('next'):
-            _logger.info('Fetching a new page in Form: %s' % form.name)
-            self.lead_processing(requests.get(r['paging']['next']).json(), form)
+            _logger.info('Fetching next page for form %s', form.name)
+            try:
+                next_r = requests.get(r['paging']['next'], timeout=30).json()
+            except requests.RequestException:
+                _logger.exception('Network error fetching next page for form %s', form.name)
+                return
+            except ValueError:
+                _logger.exception('Invalid JSON in next-page response for form %s', form.name)
+                return
+            self.lead_processing(next_r, form)
 
         try:
             self.env.cr.commit()
         except Exception:
+            _logger.exception('Failed to commit after processing page for form %s', form.name)
             self.env.cr.rollback()
-        return
 
     @api.model
     def get_facebook_leads(self):
