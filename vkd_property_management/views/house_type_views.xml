@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<odoo>
+    <!-- House Type details list view -->
+    <record id="house_type_view_tree" model="ir.ui.view">
+        <field name="name">house.type.view.tree</field>
+        <field name="model">house.type</field>
+        <field name="arch" type="xml">
+            <tree string="House Type Details">
+                <field name="house_type_name"/>
+                <field name="house_type_description"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- House Type details form view -->
+    <record id="house_type_view_form" model="ir.ui.view">
+        <field name="name">house.type.view.tree</field>
+        <field name="model">house.type</field>
+        <field name="arch" type="xml">
+            <form string="House Type Details">
+                <sheet>
+                    <group>
+                        <field name="house_type_name"/>
+                        <field name="house_type_description"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action for House Type Details -->
+    <record id="house_type_details_action" model="ir.actions.act_window">
+        <field name="name">House Type Details</field>
+        <field name="res_model">house.type</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_house_type_details"
+              name="House Types"
+              parent="menu_property_management_configuration"
+              action="house_type_details_action"
+              sequence="4"
+              groups="group_property_management_manager"/>
+
+</odoo>

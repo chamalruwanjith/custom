@@ -14,7 +14,7 @@ class UnitDetails(models.Model):
     unit_image = fields.Binary(string='Unit Image')
     apartment_details_id = fields.Many2one(comodel_name='apartment.details', string='Apartment', required=True)
     floor_details_id = fields.Many2one(comodel_name='floor.details', string='Floor')
-    unit_price = fields.Float(string='Unit Price LKR', required=True, tracking=True)
+    unit_price = fields.Float(string='Unit Price LKR', tracking=True)
     unit_price_aud = fields.Float(string='Unit Price AUD', tracking=True)
     unit_price_usd = fields.Float(string='Unit Price USD', tracking=True)
     unit_address = fields.Char(string='Unit Address')
@@ -76,9 +76,9 @@ class UnitDetails(models.Model):
     multiple_price_ids = fields.One2many(comodel_name='unit.multiple.price', inverse_name='unit_details_id',
                                          string='Multiple Prices')
     villa_type = fields.Selection([('villa', 'Villa'), ('house', 'House'), ('cottage', 'Cottage')], string='Villa Type')
-    house_area = fields.Float(string='House Area(Sqft)')
     total_area_uom_id = fields.Many2one(comodel_name='uom.uom', string="Unit of Measure")
     garden_area = fields.Float(string='Garden Area(Sqft)')
+    house_type_id = fields.Many2one(comodel_name='house.type', string='House Type Name')
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -117,7 +117,9 @@ class UnitDetails(models.Model):
                     'company_id': record.company_id.id,
                 }
                 new_product = product_template_env.create(product_vals)
-                batch_products += new_product
+
+                if record.unit_price > 0:
+                    batch_products += new_product
 
                 if warehouse:
                     self.env['stock.quant'].with_context(inventory_mode=True).create({
@@ -126,7 +128,8 @@ class UnitDetails(models.Model):
                         'inventory_quantity': 1.0,
                     })._apply_inventory()
             else:
-                batch_products += existing_product
+                if record.unit_price > 0:
+                    batch_products += existing_product
 
         if batch_products:
             self.env['res.currency']._sync_all_unit_pricelists(products=batch_products)
@@ -160,7 +163,14 @@ class UnitDetails(models.Model):
 
         if 'unit_price' in vals:
             self._update_currency_prices()
-            self.env['res.currency']._sync_all_unit_pricelists()
+
+            valid_units = self.filtered(lambda u: u.unit_price > 0)
+            if valid_units:
+                products_to_sync = self.env['product.template'].search([
+                    ('default_code', 'in', valid_units.mapped('unit_code'))
+                ])
+                if products_to_sync:
+                    self.env['res.currency']._sync_all_unit_pricelists(products=products_to_sync)
 
         product_template = self.env['product.template']
         for unit in self:
@@ -211,20 +221,21 @@ class UnitDetails(models.Model):
     def _check_unit_name_uniqueness(self):
         """Ensure unit name is unique within the same floor."""
         for record in self:
-            duplicate = self.search([
-                ('unit_name', '=', record.unit_name),
-                ('floor_details_id', '=', record.floor_details_id.id),
-                ('id', '!=', record.id)
-            ])
-            if duplicate:
-                raise ValidationError("The unit name must be unique within the same floor.")
+            if record.floor_details_id:
+                duplicate = self.search([
+                    ('unit_name', '=', record.unit_name),
+                    ('floor_details_id', '=', record.floor_details_id.id),
+                    ('id', '!=', record.id)
+                ])
+                if duplicate:
+                    raise ValidationError("The unit name must be unique within the same floor.")
 
     @api.depends('floor_details_id', 'unit_name', 'unit_type', 'apartment_details_id')
     def _compute_unit_code(self):
         """Generates unit code based on type, floor, or apartment details,
-        using the last two characters of unit_name with 'U' prefix."""
+        using the full unit_name."""
         for record in self:
-            unit_suffix = f"{record.unit_name[-2:]}" if record.unit_name else ''
+            unit_suffix = record.unit_name if record.unit_name else ''
 
             if record.unit_type == 'unit':
                 if record.floor_details_id:
@@ -235,7 +246,7 @@ class UnitDetails(models.Model):
             else:
                 if record.apartment_details_id:
                     apartment_prefix = record.apartment_details_id.prefix_for_villas or ''
-                    record.unit_code = f"{apartment_prefix}/{unit_suffix}"
+                    record.unit_code = f"{apartment_prefix}_{unit_suffix}"
                 else:
                     record.unit_code = unit_suffix
 

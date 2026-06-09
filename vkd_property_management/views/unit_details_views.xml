@@ -65,6 +65,7 @@
                             <field name="unit_type" widget="radio" options="{'horizontal': true}"
                                    invisible="is_include_villas == False" readonly="unit_status != 'draft'"/>
                             <field name="villa_type" readonly="unit_status != 'draft'" invisible="unit_type != 'villa'"/>
+                            <field name="house_type_id" readonly="unit_status != 'draft'" invisible="unit_type != 'villa'"/>
                             <field name="is_multiple_tower_apartment" invisible="1" readonly="unit_status != 'draft'"/>
                             <field name="tower_details_id"
                                    domain="[('apartment_details_id', '=', apartment_details_id)]"
@@ -103,7 +104,6 @@
                                         </div>
                                     </div>
                                     <div class="o_separator"></div>
-                                    <field name="house_area" readonly="unit_status != 'draft'" invisible="unit_type != 'villa'"/>
                                     <field name="garden_area" readonly="unit_status != 'draft'"/>
                                 </group>
                                 <group>
@@ -113,8 +113,8 @@
                                            invisible="is_multiple_floors == False"
                                            domain="[('apartment_details_id', '=', apartment_details_id)] and [('tower_details_id', '=', tower_details_id)]"
                                            readonly="unit_status != 'draft'"/>
-                                    <field name="number_of_rooms" readonly="unit_status != 'draft'"/>
-                                    <field name="number_of_bathrooms" readonly="unit_status != 'draft'"/>
+                                    <field name="number_of_rooms" readonly="unit_status != 'draft'" invisible="unit_type != 'unit'"/>
+                                    <field name="number_of_bathrooms" readonly="unit_status != 'draft'" invisible="unit_type != 'unit'"/>
                                     <field name="facing_direction" readonly="unit_status != 'draft'"/>
                                 </group>
                             </group>
@@ -130,7 +130,10 @@
                             </group>
                             <field name="multiple_price_ids" invisible="unit_type != 'villa'">
                                 <tree editable="bottom">
-                                    <field name="multiple_price_type_id" required="True"/>
+                                    <field name="multiple_price_type_id" required="True" width="200px" string="Price Type"/>
+                                    <field name="house_area" width="100px" string="Area (Sqft)"/>
+                                    <field name="room_count" width="80px" string="Rooms"/>
+                                    <field name="bathroom_count" width="80px" string="Baths"/>
                                     <field name="unit_price"/>
                                     <field name="unit_price_aud" readonly="1" force_save="1"/>
                                     <field name="unit_price_usd" readonly="1" force_save="1"/>

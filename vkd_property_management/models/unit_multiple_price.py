@@ -7,10 +7,14 @@ class UnitMultiplePrice(models.Model):
     _description = 'Unit Multiple Prices'
 
     unit_details_id = fields.Many2one(comodel_name='unit.details', string='Unit Details', ondelete='cascade')
-    unit_price = fields.Float(string='Unit Price LKR', required=True)
+    unit_price = fields.Float(string='Unit Price LKR')
     unit_price_aud = fields.Float(string='Unit Price AUD', compute='_compute_foreign_prices', store=True)
     unit_price_usd = fields.Float(string='Unit Price USD', compute='_compute_foreign_prices', store=True)
     multiple_price_type_id = fields.Many2one(comodel_name='multiple.price.type', string='Multiple Price')
+    house_area = fields.Float(string='House Area(Sqft)')
+    room_count = fields.Integer(string='Number of Rooms')
+    bathroom_count = fields.Integer(string='Number of Bathrooms')
+
 
     @api.model
     def create(self, vals):

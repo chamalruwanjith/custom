@@ -2,6 +2,7 @@ from . import apartment_details
 from . import bulk_price_line
 from . import crm_team
 from . import floor_details
+from . import house_type
 from . import ihm_agent
 from . import multiple_price_type
 from . import product_template
