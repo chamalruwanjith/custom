@@ -295,7 +295,7 @@ class CRMLeadReport(models.TransientModel):
         total_label_fmt = workbook.add_format({'bold': True, 'align': 'left', 'valign': 'vcenter', 'bg_color': '#D9D9D9', 'border': 1})
         total_num_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#D9D9D9', 'border': 1})
 
-        # key: (project, type, country, digital_team)
+        # key: (project, type, region, digital_team)
         # value: {date_str: count}
         group_data = defaultdict(lambda: defaultdict(int))
         all_dates = set()
@@ -303,7 +303,7 @@ class CRMLeadReport(models.TransientModel):
         for lead in leads:
             project = lead.project_id.apartment_name if lead.project_id else '(No Project)'
             ltype = lead.lead_type_id.name if lead.lead_type_id else '(No Type)'
-            country = lead.source_country_id.name if lead.source_country_id else '(No Country)'
+            country = dict(lead._fields['source_region'].selection).get(lead.source_region) or '(No Region)'
             dteam = lead.digital_team_id.name if lead.digital_team_id else '(No Team)'
             key = (project, ltype, country, dteam)
 
@@ -315,14 +315,14 @@ class CRMLeadReport(models.TransientModel):
         sorted_dates = sorted(all_dates, key=lambda d: datetime.strptime(d, '%m/%d/%Y'))
         sorted_keys = sorted(group_data.keys())
 
-        FIXED_COLS = 4  # PROJECT, TYPE, COUNTRY, DIGITAL TEAM
+        FIXED_COLS = 4  # PROJECT, TYPE, REGION, DIGITAL TEAM
         total_cols = FIXED_COLS + len(sorted_dates) + 1  # +1 for TOTAL column
 
         title = f"Leads by Project - {self._period_label()} - ({self._shift_label()})"
         worksheet.merge_range(0, 0, 0, total_cols - 1, title, title_fmt)
         worksheet.set_row(0, 25)
 
-        for col, h in enumerate(['PROJECT', 'TYPE', 'COUNTRY', 'DIGITAL TEAM']):
+        for col, h in enumerate(['PROJECT', 'TYPE', 'REGION', 'DIGITAL TEAM']):
             worksheet.write(1, col, h, hdr_fmt)
         for i, d in enumerate(sorted_dates):
             worksheet.write(1, FIXED_COLS + i, d, hdr_fmt)
@@ -330,7 +330,7 @@ class CRMLeadReport(models.TransientModel):
 
         worksheet.set_column(0, 0, 28)  # PROJECT
         worksheet.set_column(1, 1, 10)  # TYPE
-        worksheet.set_column(2, 2, 16)  # COUNTRY
+        worksheet.set_column(2, 2, 16)  # REGION
         worksheet.set_column(3, 3, 14)  # DIGITAL TEAM
         for col in range(FIXED_COLS, total_cols):
             worksheet.set_column(col, col, 10)
