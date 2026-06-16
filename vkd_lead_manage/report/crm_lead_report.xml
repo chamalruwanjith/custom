@@ -15,6 +15,9 @@
                     <group>
                         <field name="shift_id"/>
                     </group>
+                    <group>
+                        <field name="company_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                    </group>
                     <footer>
                         <button string="Generate" type="object" name="action_generate_report" class="btn-primary"/>
                         <button string="Cancel" class="btn-secondary" special="cancel"/>

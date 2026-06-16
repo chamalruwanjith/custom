@@ -20,6 +20,7 @@ class CRMLeadReport(models.TransientModel):
     start_date = fields.Date(string="Date", required=True)
     end_date = fields.Date(string="End Date")
     shift_id = fields.Many2one('lead.shift', string="Shift")
+    company_ids = fields.Many2many('res.company', string="Companies")
 
     def action_generate_report(self):
         colombo_tz = pytz.timezone('Asia/Colombo')
@@ -29,10 +30,13 @@ class CRMLeadReport(models.TransientModel):
         if self.start_date > self.end_date:
             raise UserError(_("Start Date cannot be greater than End Date."))
 
-        leads = self.env['crm.lead'].search([
+        domain = [
             ('create_date', '>=', self.start_date),
             ('create_date', '<=', self.end_date),
-        ], order='create_date desc')
+        ]
+        if self.company_ids:
+            domain.append(('company_id', 'in', self.company_ids.ids))
+        leads = self.env['crm.lead'].search(domain, order='create_date desc')
         if not leads:
             raise UserError(_("No leads found for the selected period."))
 
