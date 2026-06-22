@@ -150,14 +150,21 @@ class CrmLead(models.Model):
         tokens = [t for t in tokens if not re.match(r'^\d{1,2}/[A-Za-z]+$', t)]
         unmatched = list(tokens)
 
-        # 1. Digital team — D01 / D02 / D001 / D002
-        for token in list(unmatched):
-            if re.match(r'^D0*\d+$', token, re.IGNORECASE):
-                team = self.env['crm.team'].search([('name', 'ilike', token)], limit=1)
-                if team:
-                    result['digital_team_id'] = team.id
-                unmatched.remove(token)
-                break
+        # 1. Digital team — D01 / D02 / D001 / D002.
+        #    Accept the code both as a standalone ' - ' token (documented convention,
+        #    e.g. "... - D01 - ...") and embedded in a space-delimited name with no
+        #    ' - ' separators (e.g. "D02 Crest Leads May Wk 3-4").
+        team_token = next((t for t in unmatched if re.match(r'^D0*\d+$', t, re.IGNORECASE)), None)
+        if not team_token:
+            m = re.search(r'\bD0*\d+\b', adset_name, re.IGNORECASE)
+            team_token = m.group(0) if m else None
+        if team_token:
+            team = self.env['crm.team'].search([('name', 'ilike', team_token)], limit=1)
+            if team:
+                result['digital_team_id'] = team.id
+            # Drop any token that contains the code so it isn't re-used below
+            # (e.g. mistaken for a project name).
+            unmatched[:] = [t for t in unmatched if team_token not in t]
 
         # 2. Region — match token against the fixed region map
         for token in list(unmatched):
