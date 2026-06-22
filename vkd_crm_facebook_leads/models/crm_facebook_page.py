@@ -20,12 +20,11 @@ class CrmFacebookPage(models.Model):
     ]
 
     @api.depends('label', 'name')
-    def name_get(self):
-        result = []
+    def _compute_display_name(self):
+        # Odoo 17 builds display_name from this (name_get is no longer called),
+        # so show the human-friendly Page Label, falling back to the Page ID.
         for page in self:
-            name = page.label if page.label else page.name
-            result.append((page.id, name))
-        return result
+            page.display_name = page.label or page.name
 
     def form_processing(self, r):
         if not r.get('data'):
