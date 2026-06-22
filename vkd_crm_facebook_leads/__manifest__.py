@@ -11,7 +11,7 @@
     'author': "VK Data ApS",
     'website': "https://vkdata.dk",
     'category': 'CRM',
-    'version': '17.0.3.0.6',
+    'version': '17.0.3.0.7',
     'license': 'OPL-1',
     'depends': ['crm', 'vkd_lead_manage', 'vkd_property_management'],
 
@@ -21,6 +21,7 @@
         'security/ir.model.access.csv',
         'security/crm_facebook_leads_security.xml',
         'views/crm_lead_views.xml',
+        'views/lead_allocate_views.xml',
         'views/crm_facebook_lead_error_views.xml',
         'views/crm_facebook_page_views.xml',
         'views/crm_facebook_form_views.xml',

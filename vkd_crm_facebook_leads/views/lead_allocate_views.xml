@@ -1,0 +1,40 @@
+<odoo>
+    <record id="lead_allocate_view_form_facebook" model="ir.ui.view">
+        <field name="name">lead.allocate.view.form.inherit.vkd_crm_facebook_leads</field>
+        <field name="model">lead.allocate</field>
+        <field name="inherit_id" ref="vkd_lead_manage.lead_allocate_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='team_id']" position="after">
+                <field name="facebook_page_id"
+                       options="{'no_create': True}"
+                       placeholder="Leave empty = catch-all for this team/shift"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="lead_allocate_view_tree_facebook" model="ir.ui.view">
+        <field name="name">lead.allocate.view.tree.inherit.vkd_crm_facebook_leads</field>
+        <field name="model">lead.allocate</field>
+        <field name="inherit_id" ref="vkd_lead_manage.lead_allocate_view_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='team_id']" position="after">
+                <field name="facebook_page_id" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="lead_allocate_view_search_facebook" model="ir.ui.view">
+        <field name="name">lead.allocate.search.inherit.vkd_crm_facebook_leads</field>
+        <field name="model">lead.allocate</field>
+        <field name="inherit_id" ref="vkd_lead_manage.lead_allocate_view_search_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='team_id']" position="after">
+                <field name="facebook_page_id"/>
+            </xpath>
+            <xpath expr="//filter[@name='group_team']" position="after">
+                <filter string="Facebook Page" name="group_facebook_page"
+                        context="{'group_by': 'facebook_page_id'}"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

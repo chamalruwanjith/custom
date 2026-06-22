@@ -203,7 +203,20 @@ class CrmLead(models.Model):
         company_id = form.page_id.company_id.id if form.page_id and form.page_id.company_id else False
         if company_id:
             domain += ['|', ('company_id', '=', company_id), ('company_id', '=', False)]
-        return self.env['lead.allocate'].sudo().search(domain, limit=1, order='from_time desc')
+
+        Allocate = self.env['lead.allocate'].sudo()
+        page_id = form.page_id.id if form.page_id else False
+        # Prefer an allocation dedicated to this lead's Facebook page (e.g. Land Sale),
+        # then fall back to the generic catch-all allocation (page left empty).
+        page_domains = []
+        if page_id:
+            page_domains.append([('facebook_page_id', '=', page_id)])
+        page_domains.append([('facebook_page_id', '=', False)])
+        for extra in page_domains:
+            allocate = Allocate.search(domain + extra, limit=1, order='from_time desc')
+            if allocate:
+                return allocate
+        return Allocate
 
     def prepare_lead_creation(self, lead, form, ad_cache, adset_cache, campaign_cache):
         vals, notes = self.get_fields_from_data(lead, form)

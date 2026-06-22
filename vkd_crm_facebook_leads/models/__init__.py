@@ -3,6 +3,7 @@ from . import crm_facebook_page
 from . import crm_facebook_form
 from . import crm_facebook_form_field
 from . import crm_facebook_form_mapping
+from . import lead_allocate
 from . import crm_lead
 from . import ir_config_parameter
 from . import res_company
