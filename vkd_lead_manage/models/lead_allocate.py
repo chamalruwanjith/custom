@@ -71,6 +71,14 @@ class LeadAllocate(models.Model):
                 if len(rec.allocate_line_ids) > 5:
                     raise ValidationError('Round Robin mode allows a maximum of 5 agents per shift.')
 
+    def _overlap_extra_domain(self):
+        """Extra domain leaves that further scope what counts as a conflicting
+        overlap. Returns [] by default, so any two allocations for the same team
+        with overlapping times clash. Sub-modules may override to allow several
+        parallel allocations in the same slot (e.g. one per Facebook page)."""
+        self.ensure_one()
+        return []
+
     @api.constrains('from_time', 'to_time', 'team_id')
     def _check_time_overlap(self):
         for record in self:
@@ -80,7 +88,7 @@ class LeadAllocate(models.Model):
                     ('id', '!=', record.id),
                     ('from_time', '<', record.to_time),
                     ('to_time', '>', record.from_time),
-                ])
+                ] + record._overlap_extra_domain())
                 if overlapping:
                     raise ValidationError(
                         'The time slot overlaps with an existing allocation for team "%s".' % record.team_id.name
