@@ -86,6 +86,7 @@ class LeadAllocateImport(models.TransientModel):
             ('H', 'RR Agent 3',           'Optional',    'Third agent for Round Robin (leave blank if not needed)'),
             ('I', 'RR Agent 4',           'Optional',    'Fourth agent for Round Robin (leave blank if not needed)'),
             ('J', 'RR Agent 5',           'Optional',    'Fifth agent for Round Robin — maximum 5 agents total'),
+            ('K', 'Allocation Type',      'Optional',    'Enter "apartment" (default) or "lands". Land leads (adset name containing "land"/"lands") are routed to the Lands allocation'),
         ]
         req_map = {'Required': req_fmt, 'Conditional': cond_fmt, 'Optional': opt_fmt}
 
@@ -140,6 +141,7 @@ class LeadAllocateImport(models.TransientModel):
             ('RR Agent 3',                          18, opt_hdr),
             ('RR Agent 4',                          18, opt_hdr),
             ('RR Agent 5',                          18, opt_hdr),
+            ('Allocation Type\napartment / lands',  20, opt_hdr),
         ]
 
         ws.set_row(0, 40)
@@ -149,14 +151,14 @@ class LeadAllocateImport(models.TransientModel):
 
         # Sample row 1 — single agent
         sample1 = ['Sales Team A', 'single', 'Morning Shift', '2025-06-01',
-                   'John Smith', '', '', '', '', '']
+                   'John Smith', '', '', '', '', '', 'lands']
         for col, val in enumerate(sample1):
             ws.write(1, col, val, sample_fmt)
         ws.set_row(1, 16)
 
         # Sample row 2 — round robin
         sample2 = ['Sales Team B', 'round_robin', 'Evening Shift', '2025-06-01',
-                   '', 'Alice Brown', 'Bob Wilson', 'Carol Davis', '', '']
+                   '', 'Alice Brown', 'Bob Wilson', 'Carol Davis', '', '', 'apartment']
         for col, val in enumerate(sample2):
             ws.write(2, col, val, sample_fmt)
         ws.set_row(2, 16)
@@ -208,6 +210,7 @@ class LeadAllocateImport(models.TransientModel):
             shift_date_raw    = row[3]
             single_agent_name = str(row[4] or '').strip()
             rr_names          = [str(row[i] or '').strip() for i in range(5, 10) if str(row[i] or '').strip()]
+            alloc_type        = str(row[10] or '').strip().lower() if len(row) > 10 else ''
 
             if team_name in SAMPLE_TEAMS:
                 continue
@@ -222,6 +225,8 @@ class LeadAllocateImport(models.TransientModel):
                 row_errors.append('Shift Name is required')
             if not shift_date_raw:
                 row_errors.append('Shift Date is required')
+            if alloc_type and alloc_type not in ('apartment', 'lands'):
+                row_errors.append('Allocation Type must be "apartment" or "lands" (got: "%s")' % alloc_type)
 
             if row_errors:
                 errors.append('Row %d: %s' % (row_idx, '; '.join(row_errors)))
@@ -257,6 +262,7 @@ class LeadAllocateImport(models.TransientModel):
                 'distribution_type': dist_type,
                 'shift_id': shift.id,
                 'shift_date': shift_date,
+                'allocation_type': alloc_type or 'apartment',
             }
 
             if dist_type == 'single':

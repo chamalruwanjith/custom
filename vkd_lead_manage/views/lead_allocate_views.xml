@@ -8,6 +8,7 @@
                     <group>
                         <group string="Assignment">
                             <field name="team_id"/>
+                            <field name="allocation_type"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                             <field name="distribution_type"/>
                         </group>
@@ -51,6 +52,7 @@
         <field name="arch" type="xml">
             <tree>
                 <field name="team_id"/>
+                <field name="allocation_type"/>
                 <field name="shift_id"/>
                 <field name="distribution_type"/>
                 <field name="user_id" optional="show"/>
@@ -76,14 +78,19 @@
         <field name="arch" type="xml">
             <search string="Lead Allocate">
                 <field name="team_id"/>
+                <field name="allocation_type"/>
                 <field name="user_id"/>
                 <field name="shift_id"/>
                 <field name="shift_date"/>
+                <separator/>
+                <filter string="Apartment" name="type_apartment" domain="[('allocation_type','=','apartment')]"/>
+                <filter string="Lands" name="type_lands" domain="[('allocation_type','=','lands')]"/>
                 <separator/>
                 <filter string="Single Agent" name="single" domain="[('distribution_type','=','single')]"/>
                 <filter string="Round Robin" name="round_robin" domain="[('distribution_type','=','round_robin')]"/>
                 <group expand="0" string="Group By">
                     <filter string="Team" name="group_team" context="{'group_by': 'team_id'}"/>
+                    <filter string="Allocation Type" name="group_alloc_type" context="{'group_by': 'allocation_type'}"/>
                     <filter string="Shift" name="group_shift" context="{'group_by': 'shift_id'}"/>
                     <filter string="Date" name="group_date" context="{'group_by': 'shift_date'}"/>
                 </group>

@@ -12,6 +12,13 @@ class LeadAllocate(models.Model):
 
     team_id = fields.Many2one('crm.team', string='Team', required=True, tracking=True)
     company_id = fields.Many2one('res.company', string='Company', default=lambda self: self.env.company)
+    allocation_type = fields.Selection(
+        [('apartment', 'Apartment'), ('lands', 'Lands')],
+        string='Allocation Type', default='apartment', required=True, tracking=True,
+        help='Leads whose adset name mentions "land"/"lands" are routed to the Lands '
+             'allocation; everything else goes to the Apartment allocation. This lets a '
+             'Lands and an Apartment allocation share the same team / shift / date.',
+    )
     distribution_type = fields.Selection(
         [('single', 'Single Agent (Lands)'), ('round_robin', 'Round Robin (Skyline)')],
         string='Distribution Type', default='single', required=True, tracking=True,
@@ -71,27 +78,22 @@ class LeadAllocate(models.Model):
                 if len(rec.allocate_line_ids) > 5:
                     raise ValidationError('Round Robin mode allows a maximum of 5 agents per shift.')
 
-    def _overlap_extra_domain(self):
-        """Extra domain leaves that further scope what counts as a conflicting
-        overlap. Returns [] by default, so any two allocations for the same team
-        with overlapping times clash. Sub-modules may override to allow several
-        parallel allocations in the same slot (e.g. one per Facebook page)."""
-        self.ensure_one()
-        return []
-
-    @api.constrains('from_time', 'to_time', 'team_id')
+    @api.constrains('from_time', 'to_time', 'team_id', 'allocation_type')
     def _check_time_overlap(self):
         for record in self:
             if record.from_time and record.to_time:
                 overlapping = self.search([
                     ('team_id', '=', record.team_id.id),
+                    ('allocation_type', '=', record.allocation_type),
                     ('id', '!=', record.id),
                     ('from_time', '<', record.to_time),
                     ('to_time', '>', record.from_time),
-                ] + record._overlap_extra_domain())
+                ])
                 if overlapping:
                     raise ValidationError(
-                        'The time slot overlaps with an existing allocation for team "%s".' % record.team_id.name
+                        'The time slot overlaps with an existing %s allocation for team "%s".'
+                        % (dict(record._fields['allocation_type'].selection).get(record.allocation_type),
+                           record.team_id.name)
                     )
 
     def get_next_user(self):
