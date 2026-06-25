@@ -220,13 +220,11 @@ class CrmLead(models.Model):
 
         Allocate = self.env['lead.allocate'].sudo()
         alloc_type = self._allocation_type_for_adset(adset_name)
-        # Prefer an allocation matching the lead's type (Lands vs Apartment),
-        # then fall back to any allocation so the lead is still assigned.
-        allocate = Allocate.search(
+        # Strict match on the lead's type (Lands vs Apartment). If no allocation of
+        # that type exists for this slot, return empty so the lead is left unassigned
+        # rather than handed to an allocation of the wrong type.
+        return Allocate.search(
             domain + [('allocation_type', '=', alloc_type)], limit=1, order='from_time desc')
-        if not allocate:
-            allocate = Allocate.search(domain, limit=1, order='from_time desc')
-        return allocate
 
     def prepare_lead_creation(self, lead, form, ad_cache, adset_cache, campaign_cache):
         vals, notes = self.get_fields_from_data(lead, form)

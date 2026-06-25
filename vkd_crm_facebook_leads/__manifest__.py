@@ -11,7 +11,7 @@
     'author': "VK Data ApS",
     'website': "https://vkdata.dk",
     'category': 'CRM',
-    'version': '17.0.3.0.9',
+    'version': '17.0.3.0.10',
     'license': 'OPL-1',
     'depends': ['crm', 'vkd_lead_manage', 'vkd_property_management'],
 
