@@ -200,7 +200,14 @@ class CrmLead(models.Model):
 
         return result
 
-    def _find_lead_allocate(self, lead_create_time, form):
+    # Whole-word "land" / "lands", case-insensitive, so "Highland", "England",
+    # "mainland" etc. do not falsely route to the Lands allocation.
+    _LANDS_ADSET_RE = re.compile(r'\blands?\b', re.IGNORECASE)
+
+    def _allocation_type_for_adset(self, adset_name):
+        return 'lands' if adset_name and self._LANDS_ADSET_RE.search(adset_name) else 'apartment'
+
+    def _find_lead_allocate(self, lead_create_time, form, adset_name=''):
         domain = [
             ('from_time', '<=', lead_create_time),
             ('to_time', '>=', lead_create_time),
@@ -212,23 +219,19 @@ class CrmLead(models.Model):
             domain += ['|', ('company_id', '=', company_id), ('company_id', '=', False)]
 
         Allocate = self.env['lead.allocate'].sudo()
-        page_id = form.page_id.id if form.page_id else False
-        # Prefer an allocation dedicated to this lead's Facebook page (e.g. Land Sale),
-        # then fall back to the generic catch-all allocation (page left empty).
-        page_domains = []
-        if page_id:
-            page_domains.append([('facebook_page_id', '=', page_id)])
-        page_domains.append([('facebook_page_id', '=', False)])
-        for extra in page_domains:
-            allocate = Allocate.search(domain + extra, limit=1, order='from_time desc')
-            if allocate:
-                return allocate
-        return Allocate
+        alloc_type = self._allocation_type_for_adset(adset_name)
+        # Prefer an allocation matching the lead's type (Lands vs Apartment),
+        # then fall back to any allocation so the lead is still assigned.
+        allocate = Allocate.search(
+            domain + [('allocation_type', '=', alloc_type)], limit=1, order='from_time desc')
+        if not allocate:
+            allocate = Allocate.search(domain, limit=1, order='from_time desc')
+        return allocate
 
     def prepare_lead_creation(self, lead, form, ad_cache, adset_cache, campaign_cache):
         vals, notes = self.get_fields_from_data(lead, form)
         lead_create_time = lead['created_time'].split('+')[0].replace('T', ' ')
-        lead_allocate = self._find_lead_allocate(lead_create_time, form)
+        lead_allocate = self._find_lead_allocate(lead_create_time, form, lead.get('adset_name', ''))
 
         assigned_user = None
         if lead_allocate:
