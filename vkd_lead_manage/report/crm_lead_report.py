@@ -47,10 +47,17 @@ class CRMLeadReport(models.TransientModel):
         output = io.BytesIO()
         workbook = xlsxwriter.Workbook(output, {'in_memory': True})
 
+        # Split Lands vs Apartments by the ad set category (D01/D02 = Apartment,
+        # everything else — including leads with no ad set — = Lands).
+        apartment_leads = leads.filtered(lambda l: l.adset_category == 'apartment')
+        lands_leads = leads - apartment_leads
+
         self._generate_leads_sheet(workbook, leads, colombo_tz)
         self._generate_summary_sheet(workbook, leads)
-        self._generate_attend_sheet(workbook, leads, colombo_tz)
-        self._generate_project_sheet(workbook, leads, colombo_tz)
+        self._generate_attend_sheet(workbook, lands_leads, colombo_tz, 'Lands')
+        self._generate_attend_sheet(workbook, apartment_leads, colombo_tz, 'Apartments')
+        self._generate_project_sheet(workbook, lands_leads, colombo_tz, 'Lands')
+        self._generate_project_sheet(workbook, apartment_leads, colombo_tz, 'Apartments')
         self._generate_agent_count_sheet(workbook, leads, colombo_tz)
 
         workbook.close()
@@ -187,8 +194,8 @@ class CRMLeadReport(models.TransientModel):
         worksheet.write(6, 1, f"{pct_0_5:.2f}%", fmt)
 
 
-    def _generate_attend_sheet(self, workbook, leads, colombo_tz):
-        worksheet = workbook.add_worksheet("Attendance Report")
+    def _generate_attend_sheet(self, workbook, leads, colombo_tz, category_label):
+        worksheet = workbook.add_worksheet("Attendance Report (%s)" % category_label)
 
         title_fmt = workbook.add_format({'bold': True, 'font_size': 13, 'align': 'center', 'valign': 'vcenter'})
         group_hdr_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#BDD7EE', 'border': 1})
@@ -233,7 +240,7 @@ class CRMLeadReport(models.TransientModel):
         SUB_HDRS = ['0-5 min', '5-15 min', '15 min or above', 'Not Attend', 'Total', '%']
         total_cols = 1 + COLS * (1 + len(sorted_dates))
 
-        title = f"Leads on-time Attending - {self._period_label()} - ({self._shift_label()})"
+        title = f"Leads on-time Attending - {self._period_label()} - ({self._shift_label()}) - {category_label}"
         worksheet.merge_range(0, 0, 0, total_cols - 1, title, title_fmt)
         worksheet.set_row(0, 25)
 
@@ -289,8 +296,8 @@ class CRMLeadReport(models.TransientModel):
         for i, d in enumerate(sorted_dates):
             _write_group(r, 1 + COLS * (i + 1), date_totals[d], total_row_fmt)
 
-    def _generate_project_sheet(self, workbook, leads, colombo_tz):
-        worksheet = workbook.add_worksheet("Project Report")
+    def _generate_project_sheet(self, workbook, leads, colombo_tz, category_label):
+        worksheet = workbook.add_worksheet("Project Report (%s)" % category_label)
 
         title_fmt = workbook.add_format({'bold': True, 'font_size': 13, 'align': 'center', 'valign': 'vcenter'})
         hdr_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#BDD7EE', 'border': 1, 'text_wrap': True})
@@ -299,17 +306,18 @@ class CRMLeadReport(models.TransientModel):
         total_label_fmt = workbook.add_format({'bold': True, 'align': 'left', 'valign': 'vcenter', 'bg_color': '#D9D9D9', 'border': 1})
         total_num_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#D9D9D9', 'border': 1})
 
-        # key: (project, type, region, digital_team)
+        # key: (branch, project, type, region, digital_team)
         # value: {date_str: count}
         group_data = defaultdict(lambda: defaultdict(int))
         all_dates = set()
 
         for lead in leads:
+            branch = lead.branch_id.name if lead.branch_id else '(No Branch)'
             project = lead.project_id.apartment_name if lead.project_id else '(No Project)'
             ltype = lead.lead_type_id.name if lead.lead_type_id else '(No Type)'
             country = dict(lead._fields['source_region'].selection).get(lead.source_region) or '(No Region)'
             dteam = lead.digital_team_id.name if lead.digital_team_id else '(No Team)'
-            key = (project, ltype, country, dteam)
+            key = (branch, project, ltype, country, dteam)
 
             local_dt = pytz.utc.localize(lead.create_date).astimezone(colombo_tz)
             date_str = local_dt.strftime('%m/%d/%Y')
@@ -319,23 +327,25 @@ class CRMLeadReport(models.TransientModel):
         sorted_dates = sorted(all_dates, key=lambda d: datetime.strptime(d, '%m/%d/%Y'))
         sorted_keys = sorted(group_data.keys())
 
-        FIXED_COLS = 4  # PROJECT, TYPE, REGION, DIGITAL TEAM
+        HEADERS = ['BRANCH', 'PROJECT', 'TYPE', 'REGION', 'DIGITAL TEAM']
+        FIXED_COLS = len(HEADERS)
         total_cols = FIXED_COLS + len(sorted_dates) + 1  # +1 for TOTAL column
 
-        title = f"Leads by Project - {self._period_label()} - ({self._shift_label()})"
+        title = f"Leads by Project - {self._period_label()} - ({self._shift_label()}) - {category_label}"
         worksheet.merge_range(0, 0, 0, total_cols - 1, title, title_fmt)
         worksheet.set_row(0, 25)
 
-        for col, h in enumerate(['PROJECT', 'TYPE', 'REGION', 'DIGITAL TEAM']):
+        for col, h in enumerate(HEADERS):
             worksheet.write(1, col, h, hdr_fmt)
         for i, d in enumerate(sorted_dates):
             worksheet.write(1, FIXED_COLS + i, d, hdr_fmt)
         worksheet.write(1, FIXED_COLS + len(sorted_dates), 'TOTAL', hdr_fmt)
 
-        worksheet.set_column(0, 0, 28)  # PROJECT
-        worksheet.set_column(1, 1, 10)  # TYPE
-        worksheet.set_column(2, 2, 16)  # REGION
-        worksheet.set_column(3, 3, 14)  # DIGITAL TEAM
+        worksheet.set_column(0, 0, 12)  # BRANCH
+        worksheet.set_column(1, 1, 28)  # PROJECT
+        worksheet.set_column(2, 2, 10)  # TYPE
+        worksheet.set_column(3, 3, 16)  # REGION
+        worksheet.set_column(4, 4, 14)  # DIGITAL TEAM
         for col in range(FIXED_COLS, total_cols):
             worksheet.set_column(col, col, 10)
 
@@ -344,12 +354,13 @@ class CRMLeadReport(models.TransientModel):
         r = 2
 
         for key in sorted_keys:
-            project, ltype, country, dteam = key
+            branch, project, ltype, country, dteam = key
             row_total = sum(group_data[key].values())
-            worksheet.write(r, 0, project, data_fmt)
-            worksheet.write(r, 1, ltype, data_fmt)
-            worksheet.write(r, 2, country, data_fmt)
-            worksheet.write(r, 3, dteam, data_fmt)
+            worksheet.write(r, 0, branch, data_fmt)
+            worksheet.write(r, 1, project, data_fmt)
+            worksheet.write(r, 2, ltype, data_fmt)
+            worksheet.write(r, 3, country, data_fmt)
+            worksheet.write(r, 4, dteam, data_fmt)
             for i, d in enumerate(sorted_dates):
                 count = group_data[key].get(d, 0)
                 worksheet.write(r, FIXED_COLS + i, count or '', num_fmt)
