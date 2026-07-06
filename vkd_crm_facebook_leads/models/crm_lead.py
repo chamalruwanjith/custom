@@ -66,6 +66,17 @@ class CrmLead(models.Model):
         ('antarctica', 'Antarctica'),
     ], string='Source Region', readonly=True)
     digital_team_id = fields.Many2one('crm.team', string='Digital Team', readonly=True)
+    branch_id = fields.Many2one('crm.lead.branch', string='Branch', readonly=True)
+    adset_category = fields.Selection(
+        [('apartment', 'Apartment'), ('lands', 'Lands')],
+        string='Ad Set Category', compute='_compute_adset_category', store=True, readonly=True,
+        help='Derived from the ad set name: "D01"/"D02" codes are Apartment, everything else is Lands.',
+    )
+
+    @api.depends('adset_name')
+    def _compute_adset_category(self):
+        for lead in self:
+            lead.adset_category = self._allocation_type_for_adset(lead.adset_name)
 
     _sql_constraints = [
         ('facebook_lead_unique', 'unique(facebook_lead_id)',
@@ -195,17 +206,28 @@ class CrmLead(models.Model):
                 unmatched.remove(token)
                 break
 
+        # 5. Branch — match a whole word (e.g. CMB / GLE / KRN / NGM) against the
+        #    configured branches. Scans every word so it works regardless of whether
+        #    the adset is ' - ' or space delimited.
+        for word in re.findall(r'[A-Za-z0-9]+', adset_name):
+            branch = self.env['crm.lead.branch'].search([('name', '=ilike', word)], limit=1)
+            if branch:
+                result['branch_id'] = branch.id
+                break
+
         if unmatched:
             _logger.debug('Adset "%s": unmatched tokens %s', adset_name, unmatched)
 
         return result
 
-    # Whole-word "land" / "lands", case-insensitive, so "Highland", "England",
-    # "mainland" etc. do not falsely route to the Lands allocation.
-    _LANDS_ADSET_RE = re.compile(r'\blands?\b', re.IGNORECASE)
+    # A "D01"/"D02" code (any zero-padding, e.g. D01, D02, D001, D002) in the adset
+    # name → Apartment leads; every other adset name → Lands. The code may be delimited
+    # by spaces, dashes, underscores or string ends (so "D002_Digi Local" matches), but
+    # not embedded in a word ("AD01") nor part of a longer number ("D013", "D020").
+    _APARTMENT_ADSET_RE = re.compile(r'(?<![A-Za-z0-9])D0*[12](?![0-9])', re.IGNORECASE)
 
     def _allocation_type_for_adset(self, adset_name):
-        return 'lands' if adset_name and self._LANDS_ADSET_RE.search(adset_name) else 'apartment'
+        return 'apartment' if adset_name and self._APARTMENT_ADSET_RE.search(adset_name) else 'lands'
 
     def _find_lead_allocate(self, lead_create_time, form, adset_name=''):
         domain = [
@@ -259,6 +281,7 @@ class CrmLead(models.Model):
             'lead_type_id': parsed.get('lead_type_id') or form.lead_type_id.id or None,
             'source_region': parsed.get('source_region'),
             'digital_team_id': parsed.get('digital_team_id') or form.digital_team_id.id or None,
+            'branch_id': parsed.get('branch_id') or None,
         })
         return vals
 

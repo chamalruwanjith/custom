@@ -17,10 +17,12 @@
                         <field name="facebook_is_organic"/>
                     </group>
                     <group name="lead_classification" string="Lead Classification">
+                        <field name="branch_id"/>
                         <field name="project_id"/>
                         <field name="lead_type_id"/>
                         <field name="source_region"/>
                         <field name="digital_team_id"/>
+                        <field name="adset_category"/>
                     </group>
                 </page>
             </xpath>
