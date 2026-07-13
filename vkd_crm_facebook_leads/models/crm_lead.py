@@ -11,6 +11,7 @@ _logger = logging.getLogger(__name__)
 _REGION_TOKENS = {
     'ASIA': 'asia',
     'LOCAL': 'asia',  # LOCAL = Sri Lanka = Asia
+    'SL': 'asia',     # SL = Sri Lanka = Asia
     'OCEANIA': 'oceania',
     'EUROPE': 'europe',
     'AFRICA': 'africa',
@@ -157,18 +158,22 @@ class CrmLead(models.Model):
             return {}
 
         result = {}
-        tokens = [t.strip() for t in adset_name.split(' - ') if t.strip()]
+        # Adset names use either ' - ' or '_' as the segment delimiter:
+        #   "PORT CITY - LOCAL - LEAD - D01 - 19/MAY"
+        #   "D02_CANTERBURY_LEAD_NC_SL_JULY 2026 WK 1-2"
+        tokens = [t.strip() for t in re.split(r'\s+-\s+|_', adset_name) if t.strip()]
         # Remove date tokens like "19/MAY" or "01/JAN"
         tokens = [t for t in tokens if not re.match(r'^\d{1,2}/[A-Za-z]+$', t)]
         unmatched = list(tokens)
 
         # 1. Digital team — D01 / D02 / D001 / D002.
-        #    Accept the code both as a standalone ' - ' token (documented convention,
-        #    e.g. "... - D01 - ...") and embedded in a space-delimited name with no
-        #    ' - ' separators (e.g. "D02 Crest Leads May Wk 3-4").
+        #    Accept the code as a standalone token, or embedded in a name with no
+        #    delimiters at all (e.g. "D02 Crest Leads May Wk 3-4"). The fallback uses
+        #    non-word-char lookarounds rather than \b, because '_' is a word character
+        #    and would otherwise defeat the boundary in "D02_CANTERBURY...".
         team_token = next((t for t in unmatched if re.match(r'^D0*\d+$', t, re.IGNORECASE)), None)
         if not team_token:
-            m = re.search(r'\bD0*\d+\b', adset_name, re.IGNORECASE)
+            m = re.search(r'(?<![A-Za-z0-9])D0*\d+(?![0-9])', adset_name, re.IGNORECASE)
             team_token = m.group(0) if m else None
         if team_token:
             team = self.env['crm.team'].search([('name', 'ilike', team_token)], limit=1)
