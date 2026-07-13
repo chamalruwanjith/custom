@@ -1,4 +1,15 @@
 <odoo>
+
+    <record id="action_reparse_adset_names" model="ir.actions.server">
+        <field name="name">Re-parse Ad Set Names</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="binding_model_id" ref="crm.model_crm_lead"/>
+        <field name="binding_view_types">list,form</field>
+        <field name="groups_id" eval="[(4, ref('sales_team.group_sale_manager'))]"/>
+        <field name="state">code</field>
+        <field name="code">action = records.action_reparse_adset_names()</field>
+    </record>
+
     <record id="crm_lead_view_form" model="ir.ui.view">
         <field name="name">crm.lead.view.form.inherit.vkd_crm_facebook_leads</field>
         <field name="model">crm.lead</field>

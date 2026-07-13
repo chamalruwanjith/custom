@@ -2,8 +2,9 @@ import logging
 import re
 import traceback
 import requests
+from collections import defaultdict
 
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
@@ -225,6 +226,47 @@ class CrmLead(models.Model):
             _logger.debug('Adset "%s": unmatched tokens %s', adset_name, unmatched)
 
         return result
+
+    def action_reparse_adset_names(self):
+        """Re-run the ad set name parser over the selected leads and refill the
+        classification fields (digital team, project, branch, region, lead type).
+
+        Leads are grouped by ad set name so each distinct name is parsed once — many
+        thousands of leads typically share only a few hundred ad set names, which keeps
+        this cheap. A field the parser cannot resolve is left untouched, never cleared.
+        """
+        PARSED_FIELDS = ('digital_team_id', 'project_id', 'branch_id', 'source_region', 'lead_type_id')
+
+        groups = defaultdict(list)
+        for lead in self.filtered(lambda l: l.adset_name):
+            groups[lead.adset_name].append(lead.id)
+
+        updated = 0
+        for adset_name, lead_ids in groups.items():
+            parsed = self._parse_adset_name(adset_name)
+            vals = {f: parsed[f] for f in PARSED_FIELDS if parsed.get(f)}
+            if not vals:
+                continue
+            self.browse(lead_ids).write(vals)
+            updated += len(lead_ids)
+
+        _logger.info(
+            'Ad set re-parse: %s of %s lead(s) updated across %s distinct ad set name(s)',
+            updated, len(self), len(groups),
+        )
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Ad Set Re-parse'),
+                'message': _(
+                    '%(updated)s of %(total)s selected lead(s) updated, from %(groups)s distinct ad set name(s).',
+                    updated=updated, total=len(self), groups=len(groups),
+                ),
+                'type': 'success',
+                'sticky': False,
+            },
+        }
 
     # A "D01"/"D02" code (any zero-padding, e.g. D01, D02, D001, D002) in the adset
     # name → Apartment leads; every other adset name → Lands. The code may be delimited
