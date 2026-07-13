@@ -3,6 +3,8 @@ access_crm_lead_type,access_crm_lead_type,model_crm_lead_type,base.group_user,1,
 access_crm_lead_type_manager,access_crm_lead_type_manager,model_crm_lead_type,sales_team.group_sale_manager,1,1,1,1
 access_crm_lead_branch,access_crm_lead_branch,model_crm_lead_branch,base.group_user,1,0,0,0
 access_crm_lead_branch_manager,access_crm_lead_branch_manager,model_crm_lead_branch,sales_team.group_sale_manager,1,1,1,1
+access_crm_lead_project,access_crm_lead_project,model_crm_lead_project,base.group_user,1,0,0,0
+access_crm_lead_project_manager,access_crm_lead_project_manager,model_crm_lead_project,sales_team.group_sale_manager,1,1,1,1
 access_lead_shift,access_lead_shift,model_lead_shift,base.group_user,1,0,0,0
 access_lead_shift_manager,access_lead_shift_manager,model_lead_shift,sales_team.group_sale_manager,1,1,1,1
 access_lead_allocate,access_lead_allocate,model_lead_allocate,base.group_user,1,1,1,1

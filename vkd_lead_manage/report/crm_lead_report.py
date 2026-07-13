@@ -313,7 +313,7 @@ class CRMLeadReport(models.TransientModel):
 
         for lead in leads:
             branch = lead.branch_id.name if lead.branch_id else '(No Branch)'
-            project = lead.project_id.apartment_name if lead.project_id else '(No Project)'
+            project = lead.project_id.name if lead.project_id else '(No Project)'
             ltype = lead.lead_type_id.name if lead.lead_type_id else '(No Type)'
             country = dict(lead._fields['source_region'].selection).get(lead.source_region) or '(No Region)'
             dteam = lead.digital_team_id.name if lead.digital_team_id else '(No Team)'
