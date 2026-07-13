@@ -25,7 +25,7 @@ class CrmFacebookForm(models.Model):
     status = fields.Boolean(string='Active', default=False)
     company_id = fields.Many2one('res.company', required=True, string='Company')
 
-    project_id = fields.Many2one('apartment.details', string='Project')
+    project_id = fields.Many2one('crm.lead.project', string='Project')
     lead_type_id = fields.Many2one('crm.lead.type', string='Lead Type')
     country_id = fields.Many2one('res.country', string='Country')
     digital_team_id = fields.Many2one('crm.team', string='Digital Team')

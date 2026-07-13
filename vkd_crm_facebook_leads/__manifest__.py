@@ -11,9 +11,9 @@
     'author': "VK Data ApS",
     'website': "https://vkdata.dk",
     'category': 'CRM',
-    'version': '17.0.3.0.11',
+    'version': '17.0.4.0.0',
     'license': 'OPL-1',
-    'depends': ['crm', 'vkd_lead_manage', 'vkd_property_management'],
+    'depends': ['crm', 'vkd_lead_manage'],
 
     'data': [
         'data/ir_cron_data.xml',

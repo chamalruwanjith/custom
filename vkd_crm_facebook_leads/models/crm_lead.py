@@ -54,7 +54,7 @@ class CrmLead(models.Model):
 
     lead_allocate_id = fields.Many2one('lead.allocate', string='Lead Allocate')
 
-    project_id = fields.Many2one('apartment.details', string='Project', readonly=True)
+    project_id = fields.Many2one('crm.lead.project', string='Project', readonly=True)
     lead_type_id = fields.Many2one('crm.lead.type', string='Lead Type', readonly=True)
     source_region = fields.Selection([
         ('asia', 'Asia'),
@@ -149,8 +149,9 @@ class CrmLead(models.Model):
           1. Digital team — token matching D0*\\d+  (D01, D02, D001, D002)
           2. Region       — token matched against _REGION_TOKENS (Asia, Europe, North America …)
           3. Lead type    — WB if token present, otherwise defaults to NC
-          4. Project      — substring match on apartment.details.apartment_name
+          4. Project      — substring match on crm.lead.project.name
                             to handle names like "STANFORD AVENUE - MALABE" vs token "STANFORD AVENUE"
+          5. Branch       — whole-word match on crm.lead.branch.name (e.g. CMB, GLE)
         """
         if not adset_name:
             return {}
@@ -200,7 +201,7 @@ class CrmLead(models.Model):
 
         # 4. Project — substring match so "STANFORD AVENUE" hits "STANFORD AVENUE - MALABE"
         for token in list(unmatched):
-            project = self.env['apartment.details'].search([('apartment_name', 'ilike', token)], limit=1)
+            project = self.env['crm.lead.project'].search([('name', 'ilike', token)], limit=1)
             if project:
                 result['project_id'] = project.id
                 unmatched.remove(token)
