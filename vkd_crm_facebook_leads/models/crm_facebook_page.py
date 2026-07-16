@@ -1,7 +1,10 @@
+import logging
 import requests
 
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
+
+_logger = logging.getLogger(__name__)
 
 
 class CrmFacebookPage(models.Model):
@@ -51,3 +54,11 @@ class CrmFacebookPage(models.Model):
         if r.get('error'):
             raise ValidationError(r['error']['message'])
         self.form_processing(r)
+
+    @api.model
+    def cron_get_facebook_forms(self):
+        for page in self.sudo().search([]):
+            try:
+                page.get_forms()
+            except Exception:
+                _logger.exception('Failed to fetch forms for page %s', page.display_name)

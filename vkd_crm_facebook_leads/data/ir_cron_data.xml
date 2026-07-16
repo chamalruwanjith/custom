@@ -12,5 +12,18 @@
             <field name="model_id" ref="crm.model_crm_lead"/>
             <field name="code" eval="'model.get_facebook_leads()'"/>
         </record>
+
+        <record id="ir_cron_get_facebook_forms" model="ir.cron">
+            <field name="name">Fetch Facebook Forms</field>
+            <field name="active" eval="True"/>
+            <field name="state" eval="'code'"/>
+            <field name="priority" eval="0"/>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="numbercall">-1</field>
+            <field name="doall" eval="False"/>
+            <field name="model_id" ref="model_crm_facebook_page"/>
+            <field name="code" eval="'model.cron_get_facebook_forms()'"/>
+        </record>
     </data>
 </odoo>
