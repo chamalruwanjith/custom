@@ -22,7 +22,12 @@ class CrmFacebookForm(models.Model):
     source_id = fields.Many2one('utm.source', string='Source')
     medium_id = fields.Many2one('utm.medium', string='Medium')
     date_retrieval = fields.Datetime(string='Fetch Leads After')
-    status = fields.Boolean(string='Active', default=False)
+    status = fields.Boolean(
+        string='Facebook Active', default=False,
+        help='Whether the form is ACTIVE on Facebook (set automatically during lead fetch).')
+    active = fields.Boolean(
+        default=True,
+        help='Uncheck to archive this form. Archived forms are skipped by the lead fetch cron.')
     company_id = fields.Many2one('res.company', required=True, string='Company')
 
     project_id = fields.Many2one('crm.lead.project', string='Project')
@@ -42,10 +47,7 @@ class CrmFacebookForm(models.Model):
                     'form_id': self.id,
                     'name': question['label'],
                     'facebook_field': question['key'],
-                    'odoo_field_id': self.env['crm.facebook.form.mapping'].search(
-                        [('facebook_field', '=', question['key'])], limit=1) and self.env[
-                                      'crm.facebook.form.mapping'].search([('facebook_field', '=', question['key'])],
-                                                                          limit=1).odoo_field_id.id or ''
+                    'odoo_field_id': self.env['crm.facebook.form.mapping'].match_odoo_field(question['key']).id or False
                 })
 
     def action_guess_mapping(self):

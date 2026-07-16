@@ -26,11 +26,11 @@ class CrmFacebookFormField(models.Model):
     facebook_field= fields.Char(string='Facebook Field', required=True)
 
     def action_guess_mapping(self):
+        Mapping = self.env['crm.facebook.form.mapping']
         for rec in self:
-            mapping = self.env['crm.facebook.form.mapping'].search([('facebook_field', '=', rec.facebook_field)],
-                                                                   limit=1)
-            if mapping:
-                rec.odoo_field_id = mapping.odoo_field_id
+            odoo_field = Mapping.match_odoo_field(rec.facebook_field)
+            if odoo_field:
+                rec.odoo_field_id = odoo_field
 
     _sql_constraints = [
         ('field_unique', 'unique(form_id, odoo_field_id, facebook_field)', 'Mapping must be unique per form')

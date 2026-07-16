@@ -17,6 +17,9 @@ class CrmFacebookPage(models.Model):
     access_token = fields.Char(required=True, string='Page Access Token')
     form_ids = fields.One2many('crm.facebook.form', 'page_id', string='Lead Forms')
     company_id = fields.Many2one('res.company', string='Company')
+    active = fields.Boolean(
+        default=True,
+        help='Uncheck to archive this page. Archived pages are skipped by the scheduled form fetch.')
 
     _sql_constraints = [
         ('name_unique', 'unique(name)', 'You cannot create a Page twice')
@@ -32,9 +35,12 @@ class CrmFacebookPage(models.Model):
     def form_processing(self, r):
         if not r.get('data'):
             return
+        Form = self.env['crm.facebook.form'].with_context(active_test=False)
         for form in r['data']:
-            if self.form_ids.filtered(
-                    lambda f: f.facebook_form_id == form['id']):
+            # Match against archived forms too, so archiving a form doesn't cause
+            # a fresh active duplicate to be recreated on the next fetch.
+            if Form.search([('page_id', '=', self.id),
+                            ('facebook_form_id', '=', form['id'])], limit=1):
                 continue
             if form['status'] == 'ACTIVE':
                 self.env['crm.facebook.form'].create({

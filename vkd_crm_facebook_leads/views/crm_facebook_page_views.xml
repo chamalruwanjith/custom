@@ -37,11 +37,24 @@
         <field name="name">crm.facebook.page.tree</field>
         <field name="model">crm.facebook.page</field>
         <field name="arch" type="xml">
-            <tree string="Facebook Page">
+            <tree string="Facebook Page" decoration-muted="not active">
+                <field name="active" column_invisible="1"/>
                 <field name="label"/>
                 <field name="name"/>
                 <field name="company_id" groups="base.group_multi_company"/>
             </tree>
+        </field>
+    </record>
+
+    <record id="crm_facebook_page_search" model="ir.ui.view">
+        <field name="name">crm.facebook.page.search</field>
+        <field name="model">crm.facebook.page</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="label"/>
+                <field name="name"/>
+                <filter name="inactive" string="Archived" domain="[('active', '=', False)]"/>
+            </search>
         </field>
     </record>
 

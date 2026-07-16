@@ -55,7 +55,8 @@
         <field name="name">crm.facebook.form.view.tree</field>
         <field name="model">crm.facebook.form</field>
         <field name="arch" type="xml">
-            <tree>
+            <tree decoration-muted="not active">
+                <field name="active" column_invisible="1"/>
                 <field name="name"/>
                 <field name="facebook_form_id" readonly='1'/>
                 <field name="page_id" readonly='1'/>
@@ -63,6 +64,19 @@
                 <field name="team_id"/>
                 <field name="status"/>
             </tree>
+        </field>
+    </record>
+
+    <record id="crm_facebook_form_search" model="ir.ui.view">
+        <field name="name">crm.facebook.form.search</field>
+        <field name="model">crm.facebook.form</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="page_id"/>
+                <field name="facebook_form_id"/>
+                <filter name="inactive" string="Archived" domain="[('active', '=', False)]"/>
+            </search>
         </field>
     </record>
 
