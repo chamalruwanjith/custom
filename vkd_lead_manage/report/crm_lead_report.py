@@ -116,9 +116,9 @@ class CRMLeadReport(models.TransientModel):
         headers = [
             'Created Date', 'Created Time', 'Campaign',
             'Full Name', 'Email', 'Contact Number', 'WhatsApp Number',
-            'Agent', 'Attended Time', 'Response Time (min)', 'Shift',
+            'Agent', 'Digital Team', 'Attended Time', 'Response Time (min)', 'Shift',
         ]
-        col_widths = [14, 12, 20, 25, 28, 18, 18, 20, 20, 14, 16]
+        col_widths = [14, 12, 20, 25, 28, 18, 18, 20, 16, 20, 14, 16]
         for col, (w, h) in enumerate(zip(col_widths, headers)):
             worksheet.set_column(col, col, w)
             worksheet.write(0, col, h, header_fmt)
@@ -145,9 +145,10 @@ class CRMLeadReport(models.TransientModel):
             worksheet.write(row, 5,  lead.phone or '',             data_fmt)
             worksheet.write(row, 6,  lead.whatsapp_number or '',            data_fmt)
             worksheet.write(row, 7,  lead.user_id.name or 'Unassigned',    data_fmt)
-            worksheet.write(row, 8,  attended_str,                          data_fmt)
-            worksheet.write(row, 9,  rt,                                    num_fmt)
-            worksheet.write(row, 10, shift,                                 data_fmt)
+            worksheet.write(row, 8,  lead.digital_team_id.name or '',       data_fmt)
+            worksheet.write(row, 9,  attended_str,                          data_fmt)
+            worksheet.write(row, 10, rt,                                    num_fmt)
+            worksheet.write(row, 11, shift,                                 data_fmt)
 
     # ── Sheet 2: Attendance summary (legacy) ────────────────────────────────
 

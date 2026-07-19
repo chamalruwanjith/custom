@@ -7,7 +7,9 @@ access_crm_lead_project,access_crm_lead_project,model_crm_lead_project,base.grou
 access_crm_lead_project_manager,access_crm_lead_project_manager,model_crm_lead_project,sales_team.group_sale_manager,1,1,1,1
 access_lead_shift,access_lead_shift,model_lead_shift,base.group_user,1,0,0,0
 access_lead_shift_manager,access_lead_shift_manager,model_lead_shift,sales_team.group_sale_manager,1,1,1,1
-access_lead_allocate,access_lead_allocate,model_lead_allocate,base.group_user,1,1,1,1
-access_lead_allocate_line,access_lead_allocate_line,model_lead_allocate_line,base.group_user,1,1,1,1
+access_lead_allocate,access_lead_allocate,model_lead_allocate,base.group_user,1,0,0,0
+access_lead_allocate_manage,access_lead_allocate_manage,model_lead_allocate,vkd_lead_manage.group_lead_allocation,1,1,1,1
+access_lead_allocate_line,access_lead_allocate_line,model_lead_allocate_line,base.group_user,1,0,0,0
+access_lead_allocate_line_manage,access_lead_allocate_line_manage,model_lead_allocate_line,vkd_lead_manage.group_lead_allocation,1,1,1,1
 access_crm_lead_report,access_crm_lead_report,model_crm_lead_report,base.group_user,1,1,1,1
 access_lead_allocate_import,access_lead_allocate_import,model_lead_allocate_import,base.group_user,1,1,1,1

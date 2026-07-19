@@ -19,6 +19,7 @@ Excel Reports – generates a multi-sheet workbook covering lead detail, attenda
     'depends': ['base', 'crm', 'sms'],
 
     'data': [
+        'security/lead_allocate_groups.xml',
         'security/ir.model.access.csv',
         'views/crm_lead_views.xml',
         'views/crm_team_views.xml',

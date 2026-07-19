@@ -104,5 +104,5 @@
             parent="crm.menu_crm_config_lead"
             sequence="4"
             action="action_lead_allocate_views"
-            groups="sales_team.group_sale_manager"/>
+            groups="vkd_lead_manage.group_lead_allocation"/>
 </odoo>

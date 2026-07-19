@@ -51,6 +51,7 @@ class CrmLead(models.Model):
     additional_phone_number = fields.Char(string='Additional Phone Number')
     whatsapp_number = fields.Char(string='WhatsApp Number')
     best_contact_time = fields.Char(string='Best Contact Time')
+    appointment_date = fields.Char(string='Appointment Date')
     desired_number_of_perches = fields.Char(string='Desired Number of Perches')
     job_title = fields.Char(string='Job Title')
 
