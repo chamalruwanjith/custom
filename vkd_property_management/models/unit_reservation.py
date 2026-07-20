@@ -32,7 +32,7 @@ class UnitReservation(models.Model):
         ('cancel', 'Cancel'),
         ('reset', 'Reset to Draft'),
     ], string='Status', default='draft', tracking=True)
-    company_id = fields.Many2one(comodel_name='res.company', string='Company', default=lambda self: self.env.company)
+    company_id = fields.Many2one(comodel_name='res.company', string='Company')
     user_id = fields.Many2one(comodel_name='res.users', string='User', related='sale_agent_id.user_id', store=True,
                               readonly=True)
     partner_id = fields.Many2one(comodel_name='res.partner', string='Customer Name')
@@ -123,7 +123,26 @@ class UnitReservation(models.Model):
                 raise ValidationError(error_message)
 
         if vals.get('reservation_id', 'New') == 'New':
-            vals['reservation_id'] = self.env['ir.sequence'].sudo().next_by_code('unit.reservation') or 'New'
+            # Use the unit's company context so the correct per-company sequence is found,
+            # then fall back to searching any sequence with this code (handles global sequences).
+            unit_company_id = None
+            if unit_id:
+                unit_company_id = self.env['unit.details'].sudo().browse(unit_id).company_id
+            seq_env = self.env['ir.sequence'].sudo()
+            if unit_company_id:
+                next_val = seq_env.with_company(unit_company_id).next_by_code('unit.reservation')
+            else:
+                next_val = seq_env.next_by_code('unit.reservation')
+            if not next_val:
+                # Last resort: find any sequence with this code regardless of company
+                seq = seq_env.search([('code', '=', 'unit.reservation')], limit=1)
+                next_val = seq.next_by_id() if seq else None
+            vals['reservation_id'] = next_val or 'New'
+            if vals['reservation_id'] == 'New':
+                _logger.error(
+                    "unit.reservation sequence not found. "
+                    "Go to Settings > Technical > Sequences and verify 'unit.reservation' exists."
+                )
 
         creator = self.with_user(portal_user_id).sudo() if portal_user_id else self
         return super(UnitReservation, creator).create(vals)
@@ -157,7 +176,11 @@ class UnitReservation(models.Model):
             raise ValidationError(error_message)
 
         actor = self.with_user(portal_user_id).sudo() if portal_user_id else sudo_self
-        actor.write({'reservation_status': 'hold', 'reserved_date': fields.Datetime.now()})
+        actor.write({
+            'reservation_status': 'hold',
+            'reserved_date': fields.Datetime.now(),
+            'company_id': sudo_self.unit_details_id.company_id.id
+        })
         actor._update_unit_status('hold')
         actor._update_unit_activity('hold')
 
@@ -185,6 +208,7 @@ class UnitReservation(models.Model):
 
         sale_order = self.env['sale.order'].create({
             'partner_id': self.partner_id.id,
+            'company_id': unit.company_id.id,
             'order_line': [(0, 0, {
                 'product_id': product.id,
                 'product_uom_qty': 1,
@@ -259,6 +283,7 @@ class UnitReservation(models.Model):
                 sale_order_values = {
                     'partner_id': sudo_self.partner_id.id,
                     'pricelist_id': sudo_self.product_pricelist_id.id,
+                    'company_id': unit.company_id.id,
                     'order_line': [(0, 0, {
                         'product_id': product.id,
                         'product_uom_qty': 1,
@@ -353,6 +378,8 @@ class UnitReservation(models.Model):
     def action_open_sale_orders(self):
         """Open all sale orders linked to this reservation."""
         self.ensure_one()
+        if not self.reservation_id or self.reservation_id == 'New':
+            raise UserError(_('This reservation has no valid ID yet. Cannot open linked sale orders.'))
         action = self.env.ref('sale.action_orders').read()[0]
         action.update({
             'domain': [('origin', '=', self.reservation_id)],
@@ -521,4 +548,9 @@ class UnitReservation(models.Model):
     def _compute_sale_order_count(self):
         """Compute the number of sale orders linked to this reservation."""
         for record in self:
-            record.sale_order_count = self.env['sale.order'].search_count([('origin', '=', record.reservation_id)])
+            if record.reservation_id and record.reservation_id != 'New':
+                record.sale_order_count = self.env['sale.order'].search_count(
+                    [('origin', '=', record.reservation_id)]
+                )
+            else:
+                record.sale_order_count = 0

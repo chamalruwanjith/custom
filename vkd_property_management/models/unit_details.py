@@ -51,7 +51,7 @@ class UnitDetails(models.Model):
         ('draft', 'Draft'),
         ('available', 'Available'),
         ('hold', 'Hold'),
-        ('special_hold', 'Special Hold'),
+        ('special_hold', 'Suspended'),
         ('reserved', 'Tentatively Sold'),
         ('sold', 'Sold'),
         ('cancel', 'Cancel'),

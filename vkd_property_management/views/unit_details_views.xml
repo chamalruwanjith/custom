@@ -2,6 +2,73 @@
 
 <odoo>
 
+    <record id="view_unit_details_graph" model="ir.ui.view">
+        <field name="name">unit.details.view.graph</field>
+        <field name="model">unit.details</field>
+        <field name="arch" type="xml">
+            <graph string="Units by Status" type="pie">
+                <field name="unit_status" type="row"/>
+            </graph>
+        </field>
+    </record>
+    <record id="view_unit_details_kanban_compact" model="ir.ui.view">
+        <field name="name">unit.details.view.kanban.compact</field>
+        <field name="model">unit.details</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="unit_status" class="o_kanban_small_column" records_draggable="false" create="false">
+                <field name="unit_code"/>
+                <field name="unit_type"/>
+                <field name="unit_price"/>
+                <field name="unit_status"/>
+                <templates>
+                    <t t-name="kanban-box">
+
+                        <t t-set="status_color" t-value="''"/>
+                        <t t-if="record.unit_status.raw_value == 'draft' or record.unit_status.raw_value == 'available'">
+                            <t t-set="status_color" t-value="'text-info'"/>
+                        </t>
+                        <t t-elif="record.unit_status.raw_value == 'sold'">
+                            <t t-set="status_color" t-value="'text-success'"/>
+                        </t>
+                        <t t-elif="record.unit_status.raw_value == 'hold'">
+                            <t t-set="status_color" t-value="'text-warning'"/>
+                        </t>
+                        <t t-elif="record.unit_status.raw_value == 'special_hold'">
+                            <t t-set="status_color" t-value="'text-danger'"/>
+                        </t>
+                        <t t-elif="record.unit_status.raw_value == 'reserved'">
+                            <t t-set="status_color" t-value="'text-primary'"/>
+                        </t>
+                        <t t-else="">
+                            <t t-set="status_color" t-value="'text-secondary'"/>
+                        </t>
+
+                        <div class="oe_kanban_global_click" style="padding: 10px 12px; border-radius: 4px;">
+
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong style="font-size: 14px; display: flex; align-items: center; gap: 6px;">
+                                    <i t-attf-class="fa fa-circle #{status_color}" style="font-size: 10px;" aria-label="Status"/>
+                                    <field name="unit_code"/>
+                                </strong>
+                                <span class="badge text-bg-light border text-capitalize"><field name="unit_type"/></span>
+                            </div>
+
+                            <div class="text-muted" style="font-size: 13px;">
+                                <t t-if="record.unit_price.raw_value > 0">
+                                    LKR <field name="unit_price"/>
+                                </t>
+                                <t t-else="">
+                                    <em>0.00</em>
+                                </t>
+                            </div>
+
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
     <record id="view_unit_details_tree" model="ir.ui.view">
         <field name="name">unit.details.view.tree</field>
         <field name="model">unit.details</field>
@@ -11,7 +78,13 @@
                 <field name="apartment_details_id"/>
                 <field name="tower_details_id"/>
                 <field name="floor_details_id"/>
-                <field name="unit_status" widget="badge"/>
+                <field name="unit_status" widget="badge"
+                       decoration-info="unit_status in ('draft', 'available')"
+                       decoration-success="unit_status == 'sold'"
+                       decoration-warning="unit_status == 'hold'"
+                       decoration-danger="unit_status == 'special_hold'"
+                       decoration-primary="unit_status == 'reserved'"
+                       decoration-muted="unit_status in ('cancel', 'reset')"/>
                 <field name="unit_price"
                        invisible="is_property_user == True and (is_unit_sold == True or is_unit_special_hold == True)"/>
                 <field name="is_unit_special_hold" invisible="1" optional="hide"/>
@@ -31,7 +104,7 @@
                             invisible="unit_status in ['available', 'cancel', 'reserved', 'sold', 'hold']"/>
                     <button name="action_set_reserved" type="object" string="Tentatively Sold" class="oe_highlight"
                             invisible="1"/>
-                    <button name="action_set_special_hold" type="object" string="Special Hold" class="oe_highlight"
+                    <button name="action_set_special_hold" type="object" string="Suspend Sale" class="oe_highlight"
                             invisible="unit_status in ['special_hold', 'draft', 'cancel', 'sold', 'reserved']"
                             groups="vkd_property_management.group_property_management_manager"/>
                     <button name="action_set_cancel" type="object" string="Cancel" class="oe_highlight"
@@ -169,6 +242,43 @@
                 </div>
             </form>
         </field>
+    </record>
+
+    <record id="view_unit_details_search" model="ir.ui.view">
+        <field name="name">unit.details.view.search</field>
+        <field name="model">unit.details</field>
+        <field name="arch" type="xml">
+            <search string="Search Units">
+                <field name="unit_code" string="Unit Code / Name"
+                       filter_domain="['|', ('unit_code', 'ilike', self), ('unit_name', 'ilike', self)]"/>
+                <field name="apartment_details_id" string="Apartment"/>
+                <field name="tower_details_id" string="Tower"/>
+                <field name="floor_details_id" string="Floor"/>
+
+                <filter string="Available" name="filter_available" domain="[('unit_status', '=', 'available')]"/>
+                <filter string="Tentatively Sold" name="filter_reserved" domain="[('unit_status', '=', 'reserved')]"/>
+                <filter string="Sold" name="filter_sold" domain="[('unit_status', '=', 'sold')]"/>
+                <separator/>
+                <filter string="Type: Unit" name="filter_type_unit" domain="[('unit_type', '=', 'unit')]"/>
+                <filter string="Type: Villa" name="filter_type_villa" domain="[('unit_type', '=', 'villa')]"/>
+
+                <group expand="0" string="Group By">
+                    <filter string="Apartment" name="group_by_apartment" context="{'group_by': 'apartment_details_id'}"/>
+                    <filter string="Tower" name="group_by_tower" context="{'group_by': 'tower_details_id'}"/>
+                    <filter string="Floor" name="group_by_floor" context="{'group_by': 'floor_details_id'}"/>
+                    <filter string="Status" name="group_by_status" context="{'group_by': 'unit_status'}"/>
+                    <filter string="Unit Type" name="group_by_unit_type" context="{'group_by': 'unit_type'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_apartment_units" model="ir.actions.act_window">
+        <field name="name">Units</field>
+        <field name="res_model">unit.details</field>
+        <field name="view_mode">graph,kanban,tree,form</field>
+        <field name="domain">[('apartment_details_id', '=', active_id)]</field>
+        <field name="context">{'default_apartment_details_id': active_id}</field>
     </record>
 
     <record id="action_unit_details" model="ir.actions.act_window">

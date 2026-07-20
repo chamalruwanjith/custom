@@ -2,7 +2,7 @@
 
 {
     'name': "Property Management",
-    'version': '17.0.1.3.8',
+    'version': '17.0.1.4.1',
     'category': 'Sales',
 
     'summary': """This module offers dynamic property configuration, unit reservations, real-time stock checks,
@@ -28,9 +28,9 @@
         'data/ir_cron_data.xml',
         'data/mail_templates.xml',
         'views/property_management_menus.xml',
+        'views/unit_details_views.xml',
         'views/apartment_details_views.xml',
         'views/floor_details_views.xml',
-        'views/unit_details_views.xml',
         'views/sale_agent_views.xml',
         'views/res_config_settings_views.xml',
         'views/unit_reservation_views.xml',
