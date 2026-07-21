@@ -7,7 +7,7 @@
     <record id="group_lead_allocation" model="res.groups">
         <field name="name">Lead Allocation</field>
         <field name="category_id" ref="module_category_lead_management"/>
-        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="implied_ids" eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
     </record>
 
     <!-- Sales managers automatically get Lead Allocation rights -->

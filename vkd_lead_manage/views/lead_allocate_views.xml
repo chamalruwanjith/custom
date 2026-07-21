@@ -101,8 +101,8 @@
     <menuitem
             id="menu_crm_lead_allocate"
             name="Leads Allocate"
-            parent="crm.menu_crm_config_lead"
-            sequence="4"
+            parent="crm.crm_menu_root"
+            sequence="20"
             action="action_lead_allocate_views"
             groups="vkd_lead_manage.group_lead_allocation"/>
 </odoo>
